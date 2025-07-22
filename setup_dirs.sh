@@ -1,0 +1,20 @@
+#!/bin/bash
+mkdir -p src/components/common
+mkdir -p src/components/layout
+mkdir -p src/components/modules/inventory
+mkdir -p src/components/modules/repairs
+mkdir -p src/components/modules/sales
+mkdir -p src/constants
+mkdir -p src/hooks
+mkdir -p src/lib/azure
+mkdir -p src/lib/firebase
+mkdir -p src/lib/mongodb
+mkdir -p src/services
+mkdir -p src/store
+mkdir -p src/types
+mkdir -p app/\(admin\)/dashboard
+mkdir -p app/\(admin\)/inventory
+mkdir -p app/\(admin\)/repairs
+mkdir -p app/\(admin\)/sales
+mkdir -p app/\(auth\)/login
+mkdir -p app/\(public\)/track/\[folio\]
