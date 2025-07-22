@@ -2,28 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get('session');
+  const token = request.cookies.get('firebase_token')?.value;
 
-  const { pathname } = request.nextUrl;
-
-  // Si el usuario intenta acceder a una ruta de admin y no tiene cookie de sesión,
-  // redirigir a la página de login.
-  if (pathname.startsWith('/admin') && !sessionCookie) {
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+  // Si no hay token y la ruta es privada, redirige al login
+  if (!token && request.nextUrl.pathname.startsWith('/admin')) {
+    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
-  // Si el usuario está autenticado e intenta acceder a la página de login,
-  // redirigirlo al dashboard.
-  if (pathname === '/login' && sessionCookie) {
-    const dashboardUrl = new URL('/dashboard', request.url);
-    return NextResponse.redirect(dashboardUrl);
+  // Si hay token y está en login, redirige a inventory
+  if (token && request.nextUrl.pathname === '/auth/login') {
+    return NextResponse.redirect(new URL('/admin/inventory', request.url));
   }
 
   return NextResponse.next();
 }
 
-// Especifica las rutas en las que se ejecutará el middleware.
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/admin/:path*', '/auth/login'],
 };

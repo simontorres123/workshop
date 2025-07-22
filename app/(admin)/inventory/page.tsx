@@ -5,7 +5,7 @@ import { Box, Button, Container, Typography } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query'; // Usaremos react-query para el fetching
 import { inventoryService } from '@/services/inventory.service';
-import { Product } from '@/types';
+import { Product } from '@/types/product';
 
 // Mock del servicio mientras no esté conectado a la BD
 const mockInventoryService = {

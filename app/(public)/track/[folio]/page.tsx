@@ -43,7 +43,7 @@ export default async function TrackPage({ params }: TrackPageProps) {
           Orden de Reparación no encontrada
         </Typography>
         <Typography align="center">
-          El folio "{params.folio}" no corresponde a ninguna orden registrada. Por favor, verifique el folio e intente de nuevo.
+          El folio &quot;{params.folio}&quot; no corresponde a ninguna orden registrada. Por favor, verifique el folio e intente de nuevo.
         </Typography>
       </Container>
     );

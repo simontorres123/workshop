@@ -1,10 +1,10 @@
-interface ImageMetadata {
+export interface ImageMetadata {
   url: string;        // URL pública del blob en Azure
   blobName: string;   // Nombre del archivo en el contenedor
   container: string;  // Contenedor de Azure
 }
 
-interface Product {
+export interface Product {
   _id: string;        // ID de MongoDB
   name: string;
   description: string;

@@ -10,7 +10,7 @@ import { app } from '@/lib/firebase/client'; // Suponiendo que la configuración
 const auth = getAuth(app);
 
 export const authService = {
-  signInWithEmail: (email, password) => {
+  signInWithEmail: (email: string, password: string) => {
     return signInWithEmailAndPassword(auth, email, password);
   },
 
