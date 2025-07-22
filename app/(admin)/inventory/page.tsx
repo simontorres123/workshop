@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Box, Button, Container, Typography } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { useQuery } from '@tanstack/react-query'; // Usaremos react-query para el fetching
-import { inventoryService } from '@/services/inventory.service';
+import { Box, Container, Grid, Paper, Typography } from '@mui/material';
+import { GridColDef } from '@mui/x-data-grid';
 import { Product } from '@/types/product';
+import StatCard from '@/components/ui/StatCard';
+import DataTable from '@/components/ui/DataTable';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+import CustomButton from '@/components/ui/CustomButton';
 
 // Mock del servicio mientras no esté conectado a la BD
 const mockInventoryService = {
@@ -19,42 +22,14 @@ const mockInventoryService = {
 };
 
 const columns: GridColDef[] = [
-  { field: 'name', headerName: 'Nombre', width: 250 },
-  { field: 'brand', headerName: 'Marca', width: 150 },
-  { field: 'model', headerName: 'Modelo', width: 150 },
-  { field: 'price', headerName: 'Precio', type: 'number', width: 120 },
-  { field: 'stock', headerName: 'Stock', type: 'number', width: 100 },
-  {
-    field: 'status',
-    headerName: 'Estado',
-    width: 130,
-    renderCell: (params) => {
-      const { stock, lowStockThreshold } = params.row;
-      const isLowStock = stock <= lowStockThreshold;
-      return (
-        <Box sx={{ color: isLowStock ? 'error.main' : 'success.main', fontWeight: 'bold' }}>
-          {isLowStock ? 'Bajo Stock' : 'En Stock'}
-        </Box>
-      );
-    },
-  },
-  {
-    field: 'actions',
-    headerName: 'Acciones',
-    width: 150,
-    renderCell: (params) => (
-      <Button variant="outlined" size="small">
-        Editar
-      </Button>
-    ),
-  },
+    { field: 'name', headerName: 'Nombre', width: 250 },
+    { field: 'brand', headerName: 'Marca', width: 150 },
+    { field: 'model', headerName: 'Modelo', width: 150 },
+    { field: 'price', headerName: 'Precio', type: 'number', width: 120 },
+    { field: 'stock', headerName: 'Stock', type: 'number', width: 100 },
 ];
 
 export default function InventoryPage() {
-  // const { data: products, isLoading } = useQuery({
-  //   queryKey: ['products'],
-  //   queryFn: () => inventoryService.getProducts(),
-  // });
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -65,24 +40,31 @@ export default function InventoryPage() {
     });
   }, []);
 
+  const totalValue = products.reduce((acc, product) => acc + product.price * product.stock, 0);
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" component="h1">
-          Inventario de Productos
-        </Typography>
-        <Button variant="contained">
-          Añadir Producto
-        </Button>
-      </Box>
-      <div style={{ height: 600, width: '100%' }}>
-        <DataGrid
-          rows={products || []}
-          columns={columns}
-          loading={isLoading}
-          getRowId={(row) => row._id}
-        />
-      </div>
+        <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+                <StatCard title="Total Products" value={String(products.length)} icon={<InventoryIcon />} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+                <StatCard title="Total Value" value={`$${totalValue.toLocaleString()}`} icon={<MonetizationOnIcon />} />
+            </Grid>
+            <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h4" component="h1">
+                    Inventario de Productos
+                    </Typography>
+                    <CustomButton variant="contained">
+                    Añadir Producto
+                    </CustomButton>
+                </Box>
+                <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+    <DataTable rows={products} columns={columns} getRowId={(row) => row._id} />
+                </Paper>
+            </Grid>
+        </Grid>
     </Container>
   );
 }

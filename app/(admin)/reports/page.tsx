@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Container, Typography, Box, Paper } from '@mui/material';
+import { Container, Typography, Paper } from '@mui/material';
 
 export default function ReportsPage() {
   return (
