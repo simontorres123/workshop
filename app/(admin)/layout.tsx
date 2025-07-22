@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { useAuthStore } from "@/store/auth.store";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function AuthLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -14,8 +15,8 @@ export default function AuthLayout({
   const loading = useAuthStore((state) => state.loading);
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/inventory");
+    if (!loading && !user) {
+      router.replace("/login");
     }
   }, [user, loading, router]);
 
@@ -23,9 +24,9 @@ export default function AuthLayout({
     return <div>Loading...</div>;
   }
 
-  if (user) {
+  if (!user) {
     return null;
   }
 
-  return <>{children}</>;
+  return <DashboardLayout>{children}</DashboardLayout>;
 }
