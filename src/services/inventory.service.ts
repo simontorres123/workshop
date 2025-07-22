@@ -1,46 +1,63 @@
-import { Collection } from 'mongodb';
-import { getDb } from '@/lib/mongodb';
+import { Container } from '@azure/cosmos';
+import { getContainer } from '@/lib/cosmosdb';
 import { Product } from '@/types';
+import { COSMOS_DB_CONTAINERS } from '@/constants';
 
-let productCollection: Collection<Product>;
+let productContainer: Container;
 
-async function getProductCollection() {
-  if (!productCollection) {
-    const db = await getDb();
-    productCollection = db.collection<Product>('products');
+async function getProductContainer() {
+  if (!productContainer) {
+    productContainer = await getContainer(COSMOS_DB_CONTAINERS.PRODUCTS);
   }
-  return productCollection;
+  return productContainer;
 }
 
 export const inventoryService = {
   async getProducts(filters = {}) {
-    const collection = await getProductCollection();
-    // Lógica para filtrar y paginar
-    return collection.find(filters).toArray();
+    const container = await getProductContainer();
+    // La lógica de filtros para Cosmos DB es diferente, se usa SQL-like queries
+    const { resources: products } = await container.items.readAll<Product>().fetchAll();
+    return products;
   },
 
   async getProductById(id: string) {
-    const collection = await getProductCollection();
-    // Lógica para buscar por _id
+    const container = await getProductContainer();
+    const { resource: product } = await container.item(id, id).read<Product>();
+    return product;
   },
 
   async createProduct(productData: Omit<Product, '_id' | 'createdAt' | 'updatedAt'>) {
-    const collection = await getProductCollection();
-    // Lógica para crear producto
+    const container = await getProductContainer();
+    const newProduct = {
+      ...productData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const { resource: createdProduct } = await container.items.create(newProduct);
+    return createdProduct;
   },
 
   async updateProduct(id: string, updates: Partial<Product>) {
-    const collection = await getProductCollection();
-    // Lógica para actualizar producto
+    const container = await getProductContainer();
+    const { resource: item } = await container.item(id, id).read<Product>();
+    if (!item) throw new Error('Product not found');
+
+    const updatedItem = { ...item, ...updates, updatedAt: new Date() };
+    const { resource: updatedProduct } = await container.item(id, id).replace(updatedItem);
+    return updatedProduct;
   },
 
   async deleteProduct(id: string) {
-    const collection = await getProductCollection();
-    // Lógica para eliminar producto
+    const container = await getProductContainer();
+    await container.item(id, id).delete();
   },
 
   async checkLowStock() {
-    const collection = await getProductCollection();
-    // Lógica para encontrar productos con stock bajo el umbral
+    const container = await getProductContainer();
+    const querySpec = {
+      query: "SELECT * FROM c WHERE c.stock <= c.lowStockThreshold"
+    };
+    const { resources: products } = await container.items.query<Product>(querySpec).fetchAll();
+    return products;
   },
 };
