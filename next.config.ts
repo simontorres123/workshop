@@ -5,15 +5,13 @@ const nextConfig: NextConfig = {
   // Deshabilitar React Strict Mode para evitar doble renderizado en desarrollo
   reactStrictMode: false,
   
-  // Deshabilitar ESLint temporalmente para evitar fallos de build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
   // Deshabilitar TypeScript type checking durante build para acelerar
   typescript: {
     ignoreBuildErrors: true,
   },
+
+  // Silenciar advertencia de Turbopack/Webpack
+  turbopack: {},
   
   // Optimizar páginas para desarrollo rápido
   experimental: {

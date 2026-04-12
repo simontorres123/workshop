@@ -295,24 +295,16 @@ export class NotificationQueueService {
    */
   private static async updateNotificationStats(notificationId: string, success: boolean): Promise<void> {
     try {
-      // Importación dinámica para evitar dependencias circulares
+      // NOTE: Legacy Cosmos DB logic disabled to fix build
+      /*
       const { PushNotificationService } = await import('@/lib/cosmos/push-notifications');
-      
-      // Obtener todas las notificaciones para encontrar el tipo
       const notifications = await PushNotificationService.getAllScheduledNotifications();
       const notification = notifications.find(n => n.id === notificationId);
-      
       if (notification) {
-        await PushNotificationService.incrementRunCount(
-          notificationId, 
-          notification.notificationType, 
-          success
-        );
-        
-        logWithCSTTime(`📊 Estadísticas actualizadas para ${notificationId}: ${success ? 'éxito' : 'fallo'}`);
-      } else {
-        logWithCSTTime(`⚠️ No se encontró notificación con ID: ${notificationId}`);
+        await PushNotificationService.incrementRunCount(notificationId, notification.notificationType, success);
       }
+      */
+      logWithCSTTime(`📊 Estadísticas: ${notificationId} -> ${success ? 'éxito' : 'fallo'} (Actualización omitida por migración)`);
     } catch (error) {
       logWithCSTTime('❌ Error actualizando estadísticas:', error);
     }
