@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RepairOrderRepository } from '@/repositories/repair-order.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 import { UpdateRepairOrderRequest } from '@/types/repair';
 import { blobStorageService } from '@/services/blob-storage.service';
 
-const repairOrderRepository = new RepairOrderRepository();
+const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +12,7 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const order = await repairOrderRepository.getById(id);
+    const order = await repairOrderRepository.findById(id);
     
     if (!order) {
       return NextResponse.json(
@@ -70,7 +70,7 @@ export async function DELETE(
     // Deleting repair order
     
     // Primero obtener la orden para acceder a las imágenes
-    const order = await repairOrderRepository.getById(id);
+    const order = await repairOrderRepository.findById(id);
     
     if (!order) {
       return NextResponse.json(

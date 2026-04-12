@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pushNotificationService } from '@/services/push-notification.service';
-import { RepairOrderRepository } from '@/repositories/repair-order.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 import { calculateExpirationAlerts } from '@/utils/warrantyAlerts';
 
-const repairOrderRepository = new RepairOrderRepository();
+const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
 // POST /api/push-notifications/warranty-alerts - Enviar alertas de garantía
 export async function POST(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const { tokens, subscriptions, topic } = body;
 
     // Obtener órdenes para calcular alertas
-    const ordersResult = await repairOrderRepository.getAll();
+    const ordersResult = await repairOrderRepository.findAll();
     
     if (!ordersResult.success || !ordersResult.data) {
       return NextResponse.json(

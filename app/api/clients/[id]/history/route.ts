@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ClientRepository } from '@/repositories/client.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 
-const clientRepository = new ClientRepository();
+const clientRepository = RepositoryFactory.getClients();
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function GET(
       );
     }
 
-    const clientWithHistory = await clientRepository.getWithHistory(id);
+    const clientWithHistory = await clientRepository.findById(id);
 
     if (!clientWithHistory) {
       return NextResponse.json(

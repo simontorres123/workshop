@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RepairOrderRepository } from '@/repositories/repair-order.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 import { warrantyNotificationService } from '@/services/warranty-notification.service';
 
-const repairOrderRepository = new RepairOrderRepository();
+const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
 // GET /api/notifications/warranty-alerts - Obtener alertas de vencimiento
 export async function GET(request: NextRequest) {
@@ -11,17 +11,8 @@ export async function GET(request: NextRequest) {
     const dryRun = searchParams.get('dryRun') === 'true';
 
     // Obtener todas las órdenes
-    const ordersResult = await repairOrderRepository.getAll();
+    const orders = await repairOrderRepository.findAll();
     
-    if (!ordersResult.success) {
-      return NextResponse.json(
-        { success: false, error: 'Error obteniendo órdenes de reparación' },
-        { status: 500 }
-      );
-    }
-
-    const orders = ordersResult.data || [];
-
     if (dryRun) {
       // Modo de prueba: solo calcular qué notificaciones se enviarían
       const { calculateExpirationAlerts } = await import('@/utils/warrantyAlerts');
@@ -80,17 +71,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener todas las órdenes
-    const ordersResult = await repairOrderRepository.getAll();
+    const orders = await repairOrderRepository.findAll();
     
-    if (!ordersResult.success) {
-      return NextResponse.json(
-        { success: false, error: 'Error obteniendo órdenes de reparación' },
-        { status: 500 }
-      );
-    }
-
-    const orders = ordersResult.data || [];
-
     // Programar notificaciones
     await warrantyNotificationService.scheduleNotifications(
       orders,

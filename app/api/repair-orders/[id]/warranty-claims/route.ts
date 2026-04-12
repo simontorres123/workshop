@@ -43,7 +43,7 @@ export async function POST(
 
     // Obtener la orden actual
     console.log('Getting repair order with id:', id);
-    const order = await repairOrderRepository.getById(id);
+    const order = await repairOrderRepository.findById(id);
     console.log('Retrieved order:', order ? 'found' : 'not found');
     
     if (!order) {
@@ -115,7 +115,7 @@ export async function GET(
   try {
     const resolvedParams = await context.params;
     const { id } = resolvedParams;
-    const order = await repairOrderRepository.getById(id);
+    const order = await repairOrderRepository.findById(id);
     
     if (!order) {
       return NextResponse.json(

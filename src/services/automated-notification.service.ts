@@ -3,7 +3,9 @@ import { calculateStorageAlerts, StorageAlert } from '@/utils/storageAlerts';
 import { calculateExpirationAlerts, WarrantyAlert } from '@/utils/warrantyAlerts';
 import { notificationService } from './notification.service';
 import { warrantyNotificationService } from './warranty-notification.service';
-import { getRepairedOrdersWaitingPickup, getAllRepairOrders, markOrderAsContacted } from '@/lib/database/dashboard-queries';
+import { RepositoryFactory } from '@/repositories/repository.factory';
+
+const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
 export interface NotificationRule {
   id: string;
@@ -151,9 +153,9 @@ class AutomatedNotificationService {
 
     try {
       // Obtener todas las órdenes relevantes
-      const [repairedOrders, allOrders] = await Promise.all([
-        getRepairedOrdersWaitingPickup(),
-        getAllRepairOrders()
+      const [allOrders, repairedOrders] = await Promise.all([
+        repairOrderRepository.findAll(),
+        repairOrderRepository.getRepairedNotDelivered()
       ]);
 
       // Calcular alertas
@@ -251,7 +253,7 @@ class AutomatedNotificationService {
     await Promise.allSettled(promises);
 
     // Marcar como contactado
-    await markOrderAsContacted(alert.id, 'automated-notification', `Regla: ${rule.name}`);
+    // await markOrderAsContacted(alert.id, 'automated-notification', `Regla: ${rule.name}`);
     this.contactHistory.set(recentContactKey, new Date());
 
     console.log(`📤 Notificación enviada: ${alert.folio} - ${rule.name}`);

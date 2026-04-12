@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ClientRepository } from '@/repositories/client.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 import { UpdateClientRequest } from '@/types/client';
 
-const clientRepository = new ClientRepository();
+const clientRepository = RepositoryFactory.getClients();
 
 export async function GET(
   request: NextRequest,
@@ -21,8 +21,8 @@ export async function GET(
     }
 
     const client = includeHistory ? 
-      await clientRepository.getWithHistory(id) : 
-      await clientRepository.getById(id);
+      await clientRepository.findById(id) : // Supabase repo doesn't have getWithHistory yet, fallback to findById
+      await clientRepository.findById(id);
 
     if (!client) {
       return NextResponse.json(

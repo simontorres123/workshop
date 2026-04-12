@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RepairOrderRepository } from '@/repositories/repair-order.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 
-const repairOrderRepository = new RepairOrderRepository();
+const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
 export async function PATCH(
   request: NextRequest,

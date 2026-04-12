@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RepairOrderRepository } from '@/repositories/repair-order.repository';
+import { RepositoryFactory } from '@/repositories/repository.factory';
 import { createWarrantyClaimSchema } from '@/schemas/warranty.schema';
 import { v4 as uuidv4 } from 'uuid';
 import { WarrantyClaim } from '@/types/repair';
 
-const repairOrderRepository = new RepairOrderRepository();
+const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
 // GET /api/repairs/[id]/warranty-claims - Obtener reclamos de garantía de una orden
 export async function GET(
@@ -14,7 +14,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const order = await repairOrderRepository.getById(id);
+    const order = await repairOrderRepository.findById(id);
     
     if (!order) {
       return NextResponse.json(
@@ -65,7 +65,7 @@ export async function POST(
     const { reason, technician, notes } = validationResult.data;
 
     // Obtener la orden actual
-    const order = await repairOrderRepository.getById(id);
+    const order = await repairOrderRepository.findById(id);
     
     if (!order) {
       return NextResponse.json(
