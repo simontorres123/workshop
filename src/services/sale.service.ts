@@ -1,43 +1,39 @@
-import { Container } from '@azure/cosmos';
-import { getContainer } from '@/lib/cosmosdb';
+// @deprecated - Use SaleRepository instead of this legacy service
+// This file is kept for compatibility but should not be used in new code
+import { SaleRepository } from '@/repositories/sales.repository';
+import { ProductRepository } from '@/repositories/product.repository';
 import { Sale } from '@/types';
-import { COSMOS_DB_CONTAINERS } from '@/constants';
-import { inventoryService } from './inventory.service';
 
-let saleContainer: Container;
-
-async function getSaleContainer() {
-  if (!saleContainer) {
-    saleContainer = await getContainer(COSMOS_DB_CONTAINERS.SALES);
-  }
-  return saleContainer;
-}
+const saleRepository = new SaleRepository();
+const productRepository = new ProductRepository();
 
 export const saleService = {
-  async createSale(saleData: Omit<Sale, '_id' | 'transactionDate'>) {
-    const container = await getSaleContainer();
-    const newSale = {
+  async createSale(saleData: Omit<Sale, 'id' | 'transactionDate'>) {
+    // Redirect to modern repository
+    const result = await saleRepository.create({
       ...saleData,
+      type: 'sale',
       transactionDate: new Date(),
-    };
-    const { resource: createdSale } = await container.items.create(newSale);
+    });
 
-    // Actualizar stock
-    for (const item of saleData.items) {
-      const product = await inventoryService.getProductById(item.productId);
-      if (product) {
-        await inventoryService.updateProduct(item.productId, {
-          stock: product.stock - item.quantity,
-        });
+    if (result.success && result.data) {
+      // Update stock using modern repository
+      for (const item of saleData.items) {
+        const productResult = await productRepository.findById(item.productId);
+        if (productResult.success && productResult.data) {
+          await productRepository.update(item.productId, {
+            stock: productResult.data.stock - item.quantity,
+          });
+        }
       }
     }
 
-    return createdSale;
+    return result.success ? result.data : null;
   },
 
   async getSales(filters = {}) {
-    const container = await getSaleContainer();
-    const { resources: sales } = await container.items.readAll<Sale>().fetchAll();
-    return sales;
+    // Redirect to modern repository
+    const result = await saleRepository.findAll();
+    return result.success ? result.data || [] : [];
   },
 };

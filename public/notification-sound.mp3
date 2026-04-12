@@ -1,0 +1,3 @@
+# Este archivo debería ser un archivo MP3 real
+# Por ahora, crearemos un mecanismo alternativo usando Web Audio API
+# en lugar de archivos de sonido estáticos

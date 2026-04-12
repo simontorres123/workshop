@@ -1,67 +1,61 @@
 "use client";
 
 import * as React from "react";
-import { styled, ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import MuiDrawer from "@mui/material/Drawer";
-import Box from "@mui/material/Box";
-import MuiAppBar, { AppBarProps as MuiAppBarProps } from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
-import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
-import MenuIcon from "@mui/icons-material/Menu";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import { styled, useTheme } from "@mui/material/styles";
+import { 
+  Box, 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Drawer, 
+  IconButton,
+  useMediaQuery,
+  Stack,
+  Avatar,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider
+} from "@mui/material";
+import { Icon } from '@iconify/react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
+import { authService } from '@/services/auth.service';
 import SidebarItems from "./SidebarItems";
-import theme from "@/theme";
+import { useAuth } from "@/hooks/useAuth";
+import BranchSelector from "./BranchSelector";
 
-const drawerWidth: number = 240;
+const DRAWER_WIDTH = 280;
+const APPBAR_MOBILE = 64;
+const APPBAR_DESKTOP = 92;
 
-interface AppBarProps extends MuiAppBarProps {
-  open?: boolean;
-}
+const RootStyle = styled('div')({
+  display: 'flex',
+  minHeight: '100%',
+  overflow: 'hidden'
+});
 
-const AppBar = styled(MuiAppBar, {
-  shouldForwardProp: (prop) => prop !== "open",
-})<AppBarProps>(({ theme, open }) => ({
-  zIndex: theme.zIndex.drawer + 1,
-  transition: theme.transitions.create(["width", "margin"], {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  ...(open && {
-    marginLeft: drawerWidth,
-    width: `calc(100% - ${drawerWidth}px)`,
-    transition: theme.transitions.create(["width", "margin"], {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  }),
+const MainStyle = styled('div')(({ theme }) => ({
+  flexGrow: 1,
+  overflow: 'auto',
+  minHeight: '100%',
+  paddingTop: APPBAR_MOBILE + 24,
+  paddingBottom: 24,
+  [theme.breakpoints.up('lg')]: {
+    paddingTop: APPBAR_DESKTOP + 24,
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
 }));
 
-const Drawer = styled(MuiDrawer, {
-  shouldForwardProp: (prop) => prop !== "open",
-})(({ theme, open }) => ({
-  "& .MuiDrawer-paper": {
-    position: "relative",
-    whiteSpace: "nowrap",
-    width: drawerWidth,
-    transition: theme.transitions.create("width", {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-    boxSizing: "border-box",
-    ...(!open && {
-      overflowX: "hidden",
-      transition: theme.transitions.create("width", {
-        easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.leavingScreen,
-      }),
-      width: theme.spacing(7),
-      [theme.breakpoints.up("sm")]: {
-        width: theme.spacing(9),
-      },
-    }),
+const StyledAppBar = styled(AppBar)(({ theme }) => ({
+  boxShadow: 'none',
+  backdropFilter: 'blur(6px)',
+  WebkitBackdropFilter: 'blur(6px)',
+  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  [theme.breakpoints.up('lg')]: {
+    width: `calc(100% - ${DRAWER_WIDTH + 1}px)`,
   },
 }));
 
@@ -70,76 +64,196 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = React.useState(true);
-  const toggleDrawer = () => {
-    setOpen(!open);
+  const theme = useTheme();
+  const router = useRouter();
+  const { setUser } = useAuthStore();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  const { signOut } = useAuth();
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      handleUserMenuClose();
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error durante el logout:', error);
+      window.location.href = '/login';
+    }
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ display: "flex" }}>
-        <CssBaseline />
-        <AppBar position="absolute" open={open}>
-          <Toolbar
-            sx={{
-              pr: "24px", // keep right padding when drawer closed
-            }}
-          >
-            <IconButton
-              edge="start"
-              color="inherit"
-              aria-label="open drawer"
-              onClick={toggleDrawer}
-              sx={{
-                marginRight: "36px",
-                ...(open && { display: "none" }),
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography
-              component="h1"
-              variant="h6"
-              color="inherit"
-              noWrap
-              sx={{ flexGrow: 1 }}
-            >
-              Dashboard
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Drawer variant="permanent" open={open}>
-          <Toolbar
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              px: [1],
-            }}
-          >
-            <IconButton onClick={toggleDrawer}>
-              <ChevronLeftIcon />
-            </IconButton>
-          </Toolbar>
-          <Divider />
-          <SidebarItems />
-        </Drawer>
-        <Box
-          component="main"
+    <RootStyle>
+      <StyledAppBar>
+        <Toolbar
           sx={{
-            backgroundColor: (theme) =>
-              theme.palette.mode === "light"
-                ? theme.palette.grey[100]
-                : theme.palette.grey[900],
-            flexGrow: 1,
-            height: "100vh",
-            overflow: "auto",
+            minHeight: APPBAR_MOBILE,
+            [theme.breakpoints.up('lg')]: {
+              minHeight: APPBAR_DESKTOP,
+              padding: theme.spacing(0, 5),
+            },
           }}
         >
-          <Toolbar />
-          <Box sx={{ p: 3 }}>{children}</Box>
-        </Box>
+          <IconButton
+            onClick={handleDrawerToggle}
+            sx={{
+              mr: 1,
+              color: 'text.primary',
+              display: { lg: 'none' },
+            }}
+          >
+            <Icon icon="eva:menu-fill" />
+          </IconButton>
+
+          <Typography variant="h6" sx={{ flexGrow: 1, color: 'text.primary' }}>
+            Workshop Dashboard
+          </Typography>
+
+          <BranchSelector />
+
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={{ xs: 0.5, sm: 1.5 }}
+          >
+            <IconButton
+              onClick={handleUserMenuOpen}
+              sx={{ p: 0 }}
+              aria-label="user menu"
+            >
+              <Avatar 
+                sx={{ 
+                  width: 36, 
+                  height: 36,
+                  bgcolor: 'primary.main',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  }
+                }}
+              >
+                <Icon icon="eva:person-fill" width={20} />
+              </Avatar>
+            </IconButton>
+          </Stack>
+        </Toolbar>
+      </StyledAppBar>
+
+      {/* User Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleUserMenuClose}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            overflow: 'visible',
+            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+            mt: 1.5,
+            minWidth: 180,
+            '& .MuiAvatar-root': {
+              width: 32,
+              height: 32,
+              ml: -0.5,
+              mr: 1,
+            },
+            '&:before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: 'background.paper',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+            },
+          },
+        }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={handleUserMenuClose}>
+          <ListItemIcon>
+            <Icon icon="eva:person-outline" width={20} />
+          </ListItemIcon>
+          <ListItemText>Mi Perfil</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={handleUserMenuClose}>
+          <ListItemIcon>
+            <Icon icon="eva:settings-outline" width={20} />
+          </ListItemIcon>
+          <ListItemText>Configuración</ListItemText>
+        </MenuItem>
+        
+        <Divider />
+        
+        <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+          <ListItemIcon>
+            <Icon icon="eva:log-out-outline" width={20} style={{ color: 'inherit' }} />
+          </ListItemIcon>
+          <ListItemText>Cerrar Sesión</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <Box
+        component="nav"
+        sx={{
+          width: { lg: DRAWER_WIDTH },
+          flexShrink: { lg: 0 },
+        }}
+      >
+        {isDesktop ? (
+          <Drawer
+            open
+            variant="persistent"
+            PaperProps={{
+              sx: {
+                width: DRAWER_WIDTH,
+                bgcolor: 'background.default',
+                borderRightStyle: 'dashed',
+              },
+            }}
+          >
+            <SidebarItems />
+          </Drawer>
+        ) : (
+          <Drawer
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{
+              keepMounted: true,
+            }}
+            PaperProps={{
+              sx: { width: DRAWER_WIDTH },
+            }}
+          >
+            <SidebarItems onCloseMobile={() => setMobileOpen(false)} />
+          </Drawer>
+        )}
       </Box>
-    </ThemeProvider>
+
+      <MainStyle>
+        <Box sx={{ px: 2, py: 3, width: 1 }}>
+          {children}
+        </Box>
+      </MainStyle>
+    </RootStyle>
   );
 }

@@ -1,55 +1,67 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Box, Container, Grid, Paper, Typography } from '@mui/material';
+import React, { useEffect } from 'react';
+import { Box, Container, Grid, Paper, Typography, CircularProgress, Alert } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
-import { Product } from '@/types/product';
 import StatCard from '@/components/ui/StatCard';
 import DataTable from '@/components/ui/DataTable';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import CustomButton from '@/components/ui/CustomButton';
-
-// Mock del servicio mientras no esté conectado a la BD
-const mockInventoryService = {
-  getProducts: async (): Promise<Product[]> => {
-    return [
-      { _id: '1', name: 'Lavadora Carga Frontal', brand: 'LG', model: 'W-101', price: 8500, stock: 10, lowStockThreshold: 3, images: [], createdAt: new Date(), updatedAt: new Date(), description: '' },
-      { _id: '2', name: 'Refrigerador No-Frost', brand: 'Samsung', model: 'RF-202', price: 12000, stock: 5, lowStockThreshold: 2, images: [], createdAt: new Date(), updatedAt: new Date(), description: '' },
-      { _id: '3', name: 'Microondas', brand: 'Panasonic', model: 'MW-303', price: 2500, stock: 1, lowStockThreshold: 5, images: [], createdAt: new Date(), updatedAt: new Date(), description: '' },
-    ];
-  }
-};
+import { useProducts } from '@/hooks/useProducts';
 
 const columns: GridColDef[] = [
-    { field: 'name', headerName: 'Nombre', width: 250 },
-    { field: 'brand', headerName: 'Marca', width: 150 },
-    { field: 'model', headerName: 'Modelo', width: 150 },
-    { field: 'price', headerName: 'Precio', type: 'number', width: 120 },
-    { field: 'stock', headerName: 'Stock', type: 'number', width: 100 },
+    { field: 'name', headerName: 'Nombre', flex: 2, minWidth: 250 },
+    { field: 'brand', headerName: 'Marca', flex: 1, minWidth: 150 },
+    { field: 'model', headerName: 'Modelo', flex: 1, width: 150 },
+    { 
+      field: 'price', 
+      headerName: 'Precio', 
+      type: 'number', 
+      flex: 1, 
+      minWidth: 120,
+      valueFormatter: (value) => `$${Number(value).toLocaleString()}`
+    },
+    { field: 'stock', headerName: 'Stock', type: 'number', flex: 1, minWidth: 100 },
 ];
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { products, loading, error, fetchProducts } = useProducts();
 
-  React.useEffect(() => {
-    mockInventoryService.getProducts().then(data => {
-      setProducts(data);
-      setIsLoading(false);
-    });
-  }, []);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
-  const totalValue = products.reduce((acc, product) => acc + product.price * product.stock, 0);
+  const totalValue = (products || []).reduce((acc, product) => acc + (product.price || 0) * (product.stock || 0), 0);
+
+  if (loading && products.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        
         <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-                <StatCard title="Total Products" value={String(products.length)} icon={<InventoryIcon />} />
+                <StatCard 
+                  title="Productos Totales" 
+                  value={String(products.length)} 
+                  icon={<InventoryIcon />} 
+                  color="info"
+                />
             </Grid>
             <Grid item xs={12} md={6}>
-                <StatCard title="Total Value" value={`$${totalValue.toLocaleString()}`} icon={<MonetizationOnIcon />} />
+                <StatCard 
+                  title="Valor Total" 
+                  value={`$${totalValue.toLocaleString()}`} 
+                  icon={<MonetizationOnIcon />} 
+                  color="success"
+                />
             </Grid>
             <Grid item xs={12}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -61,7 +73,7 @@ export default function InventoryPage() {
                     </CustomButton>
                 </Box>
                 <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-    <DataTable rows={products} columns={columns} getRowId={(row) => row._id} />
+                  <DataTable rows={products} columns={columns} getRowId={(row) => row.id} />
                 </Paper>
             </Grid>
         </Grid>

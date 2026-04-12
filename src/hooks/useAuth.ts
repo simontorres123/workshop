@@ -1,29 +1,57 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
-import { User } from 'firebase/auth';
 
 export function useAuth() {
-  const { user, setUser, loading, setLoading } = useAuthStore();
+  const { 
+    user, 
+    profile, 
+    setUser, 
+    setProfile, 
+    loading, 
+    setLoading,
+    isAuthenticated,
+    getOrganizationId,
+    getRole
+  } = useAuthStore();
+
+  const loadProfile = useCallback(async (userId: string) => {
+    try {
+      const userProfile = await authService.getUserProfile(userId);
+      setProfile(userProfile);
+    } catch (error) {
+      console.error("Error loading profile:", error);
+      setProfile(null);
+    }
+  }, [setProfile]);
 
   useEffect(() => {
-    setLoading(true);
-    const unsubscribe = authService.onAuthStateChange((firebaseUser: User | null) => {
-      setUser(firebaseUser);
-      setLoading(false);
+    // Escuchar cambios de sesión
+    const subscription = authService.onAuthStateChange(async (session) => {
+      if (session?.user) {
+        setUser(session.user);
+        await loadProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
     });
 
-    // Limpiar la suscripción al desmontar el componente
-    return () => unsubscribe();
-  }, [setUser, setLoading]);
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
+  }, [setUser, setProfile, setLoading, loadProfile]);
 
   const signIn = async (email, password) => {
     setLoading(true);
     try {
-      const userCredential = await authService.signInWithEmail(email, password);
-      // La sesión se manejará a través de la cookie que se setea en el backend
-      // y el onAuthStateChange actualizará el estado global.
-      return userCredential;
+      const data = await authService.signInWithEmail(email, password);
+      if (data.user) {
+        setUser(data.user);
+        await loadProfile(data.user.id);
+      }
+      return data;
     } catch (error) {
       console.error("Error signing in:", error);
       setLoading(false);
@@ -35,17 +63,26 @@ export function useAuth() {
     setLoading(true);
     try {
       await authService.signOut();
-      // onAuthStateChange se encargará de limpiar el estado.
+      setUser(null);
+      setProfile(null);
+      // Eliminar la cookie de token
+      document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
     } catch (error) {
       console.error("Error signing out:", error);
+    } finally {
       setLoading(false);
     }
   };
 
   return {
     user,
+    profile,
     loading,
-    isAuthenticated: !!user,
+    isAuthenticated,
+    organizationId: getOrganizationId(),
+    role: getRole(),
+    isSuperAdmin: getRole() === 'super_admin',
+    isOrgAdmin: getRole() === 'org_admin',
     signIn,
     signOut,
   };

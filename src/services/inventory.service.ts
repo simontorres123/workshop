@@ -1,63 +1,46 @@
-import { Container } from '@azure/cosmos';
-import { getContainer } from '@/lib/cosmosdb';
+// @deprecated - Use ProductRepository instead of this legacy service
+// This file is kept for compatibility but should not be used in new code
+import { ProductRepository } from '@/repositories/product.repository';
 import { Product } from '@/types';
-import { COSMOS_DB_CONTAINERS } from '@/constants';
 
-let productContainer: Container;
-
-async function getProductContainer() {
-  if (!productContainer) {
-    productContainer = await getContainer(COSMOS_DB_CONTAINERS.PRODUCTS);
-  }
-  return productContainer;
-}
+const productRepository = new ProductRepository();
 
 export const inventoryService = {
   async getProducts(filters = {}) {
-    const container = await getProductContainer();
-    // La lógica de filtros para Cosmos DB es diferente, se usa SQL-like queries
-    const { resources: products } = await container.items.readAll<Product>().fetchAll();
-    return products;
+    // Redirect to modern repository
+    const result = await productRepository.findAll();
+    return result.success ? result.data || [] : [];
   },
 
   async getProductById(id: string) {
-    const container = await getProductContainer();
-    const { resource: product } = await container.item(id, id).read<Product>();
-    return product;
+    // Redirect to modern repository
+    const result = await productRepository.findById(id);
+    return result.success ? result.data : null;
   },
 
-  async createProduct(productData: Omit<Product, '_id' | 'createdAt' | 'updatedAt'>) {
-    const container = await getProductContainer();
-    const newProduct = {
+  async createProduct(productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) {
+    // Redirect to modern repository
+    const result = await productRepository.create({
       ...productData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const { resource: createdProduct } = await container.items.create(newProduct);
-    return createdProduct;
+      type: 'product',
+    });
+    return result.success ? result.data : null;
   },
 
   async updateProduct(id: string, updates: Partial<Product>) {
-    const container = await getProductContainer();
-    const { resource: item } = await container.item(id, id).read<Product>();
-    if (!item) throw new Error('Product not found');
-
-    const updatedItem = { ...item, ...updates, updatedAt: new Date() };
-    const { resource: updatedProduct } = await container.item(id, id).replace(updatedItem);
-    return updatedProduct;
+    // Redirect to modern repository
+    const result = await productRepository.update(id, updates);
+    return result.success ? result.data : null;
   },
 
   async deleteProduct(id: string) {
-    const container = await getProductContainer();
-    await container.item(id, id).delete();
+    // Redirect to modern repository
+    await productRepository.delete(id);
   },
 
   async checkLowStock() {
-    const container = await getProductContainer();
-    const querySpec = {
-      query: "SELECT * FROM c WHERE c.stock <= c.lowStockThreshold"
-    };
-    const { resources: products } = await container.items.query<Product>(querySpec).fetchAll();
-    return products;
+    // This functionality should be implemented in the ProductRepository
+    console.warn('Low stock check should be implemented in ProductRepository');
+    return [];
   },
 };

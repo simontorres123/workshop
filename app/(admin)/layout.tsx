@@ -1,32 +1,35 @@
 "use client";
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from "@/components/layouts/DashboardLayout";
-import { useAuthStore } from "@/store/auth.store";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Box, CircularProgress } from '@mui/material';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const loading = useAuthStore((state) => state.loading);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
+    if (!loading && !isAuthenticated) {
+      router.replace('/login');
     }
-  }, [user, loading, router]);
+  }, [isAuthenticated, loading, router]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
-  if (!user) {
-    return null;
-  }
+  // Si no está autenticado, el useEffect redirigirá, pero mientras tanto no mostramos nada
+  if (!isAuthenticated) return null;
 
   return <DashboardLayout>{children}</DashboardLayout>;
 }
