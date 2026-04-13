@@ -5,13 +5,13 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
 
-  // RUTAS PRIVADAS (Si no hay token, redirigir al login)
-  const privateRoutes = [
+  // 1. Rutas que requieren estar LOGUEADO
+  const privatePrefixes = [
     '/dashboard', '/repairs', '/inventory', '/clients', 
     '/sales', '/settings', '/system', '/organizations'
   ];
 
-  const isPrivateRoute = privateRoutes.some(route => pathname.startsWith(route));
+  const isPrivateRoute = privatePrefixes.some(prefix => pathname.startsWith(prefix));
 
   if (isPrivateRoute && !token) {
     const url = request.nextUrl.clone();
@@ -20,8 +20,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Si hay token e intenta ir al login, mandarlo al dashboard
-  if (token && pathname === '/login') {
+  // 2. Si ya está logueado, no dejarlo ir al login/register
+  if (token && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -30,6 +30,14 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api/track|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - Public files (svg, png, etc.)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
 };

@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       type: 'magiclink',
       email: organizerEmail,
       options: {
-        redirectTo: `${new URL(request.url).origin}/dashboard`
+        redirectTo: `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : new URL(request.url).origin}/dashboard`
       }
     });
 

@@ -17,11 +17,11 @@ export const emailService = {
         subject: `¡Bienvenido a Workshop Pro, ${params.fullName}!`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-            <h2 style="color: #667eea;">¡Hola, ${params.fullName}!</h2>
+            <h2 style="color: #00A76F;">¡Hola, ${params.fullName}!</h2>
             <p>Has sido dado de alta como <strong>Organizador</strong> para el taller <strong>${params.orgName}</strong> en nuestra plataforma.</p>
             <p>Para completar la configuración de tu cuenta y acceder a tu panel de control, haz clic en el siguiente botón:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${params.invitationLink}" style="background-color: #667eea; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+              <a href="${params.invitationLink}" style="background-color: #00A76F; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
                 Configurar mi cuenta y entrar
               </a>
             </div>

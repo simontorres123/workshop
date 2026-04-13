@@ -2,13 +2,20 @@ import { useEffect, useCallback } from 'react';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
 
+// Flag global para evitar múltiples inicializaciones entre componentes
+let authInitialized = false;
+
+/**
+ * Hook central de autenticación.
+ * Gestiona la sesión, el perfil del usuario y el estado de carga.
+ */
 export function useAuth() {
-  const { 
-    user, 
-    profile, 
-    setUser, 
-    setProfile, 
-    loading, 
+  const {
+    user,
+    profile,
+    setUser,
+    setProfile,
+    loading,
     setLoading,
     isAuthenticated,
     getOrganizationId,
@@ -26,38 +33,67 @@ export function useAuth() {
   }, [setProfile]);
 
   useEffect(() => {
-    // Escuchar cambios de sesión
+    // Si ya inicializamos globalmente, no repetir
+    if (authInitialized) return;
+    authInitialized = true;
+
+    // Si el store ya tiene usuario (ej: login directo), no reiniciar loading
+    const currentState = useAuthStore.getState();
+    if (currentState.user && currentState.profile) {
+      setLoading(false);
+      return;
+    }
+
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        const session = await authService.getSession();
+
+        if (mounted) {
+          if (session?.user) {
+            setUser(session.user);
+            await loadProfile(session.user.id);
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
+        }
+      } catch (error) {
+        console.error("Auth initialization failed:", error);
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // Escuchar cambios futuros
     const subscription = authService.onAuthStateChange(async (session) => {
+      if (!mounted) return;
+
       if (session?.user) {
-        setUser(session.user);
-        await loadProfile(session.user.id);
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser?.id !== session.user.id) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
+        }
       } else {
         setUser(null);
         setProfile(null);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => {
+      mounted = false;
       if (subscription) subscription.unsubscribe();
     };
   }, [setUser, setProfile, setLoading, loadProfile]);
-
-  const signIn = async (email, password) => {
-    setLoading(true);
-    try {
-      const data = await authService.signInWithEmail(email, password);
-      if (data.user) {
-        setUser(data.user);
-        await loadProfile(data.user.id);
-      }
-      return data;
-    } catch (error) {
-      console.error("Error signing in:", error);
-      setLoading(false);
-      throw error;
-    }
-  };
 
   const signOut = async () => {
     setLoading(true);
@@ -65,10 +101,9 @@ export function useAuth() {
       await authService.signOut();
       setUser(null);
       setProfile(null);
-      // Eliminar la cookie de token
+      // Reset para que la próxima sesión re-inicialice
+      authInitialized = false;
       document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-    } catch (error) {
-      console.error("Error signing out:", error);
     } finally {
       setLoading(false);
     }
@@ -83,7 +118,6 @@ export function useAuth() {
     role: getRole(),
     isSuperAdmin: getRole() === 'super_admin',
     isOrgAdmin: getRole() === 'org_admin',
-    signIn,
     signOut,
   };
 }
