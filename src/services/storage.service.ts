@@ -1,29 +1,61 @@
-import { BlobServiceClient } from '@azure/storage-blob';
-import { getBlobServiceClient } from '@/lib/azure'; // Suponiendo que el cliente estará aquí
+import { supabase } from '@/lib/supabase/client';
 
+/**
+ * Servicio de almacenamiento unificado utilizando Supabase Storage.
+ * Reemplaza la implementación anterior de Azure Blob Storage.
+ */
 export const storageService = {
-  async uploadImage(containerName: string, file: File, blobName: string) {
-    const blobServiceClient = getBlobServiceClient();
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  /**
+   * Sube una imagen a un bucket de Supabase
+   */
+  async uploadImage(bucketName: string, file: File, path: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-    // Convertir File a Buffer para subirlo
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await blockBlobClient.uploadData(buffer);
+      if (error) throw error;
 
-    return blockBlobClient.url;
+      // Obtener la URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(data.path);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading to Supabase Storage:', error);
+      return null;
+    }
   },
 
-  async deleteImage(containerName: string, blobName: string) {
-    const blobServiceClient = getBlobServiceClient();
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-    await containerClient.deleteBlob(blobName);
+  /**
+   * Elimina una imagen del bucket
+   */
+  async deleteImage(bucketName: string, path: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.storage
+        .from(bucketName)
+        .remove([path]);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting from Supabase Storage:', error);
+      return false;
+    }
   },
 
-  getImageUrl(containerName: string, blobName: string): string {
-    const blobServiceClient = getBlobServiceClient();
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-    return blockBlobClient.url;
-  },
+  /**
+   * Obtiene la URL de una imagen
+   */
+  getImageUrl(bucketName: string, path: string): string {
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(path);
+    
+    return publicUrl;
+  }
 };
