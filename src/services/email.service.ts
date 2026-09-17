@@ -9,8 +9,18 @@ export const emailService = {
     fullName: string;
     orgName: string;
     invitationLink: string;
+    temporaryPassword?: string;
   }) => {
     try {
+      const passwordSection = params.temporaryPassword
+        ? `
+            <div style="background-color: #FFF3E0; border: 1px solid #FFB74D; border-radius: 5px; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0 0 8px 0; font-weight: bold; color: #E65100;">Tu contraseña temporal:</p>
+              <p style="margin: 0; font-family: monospace; font-size: 18px; letter-spacing: 1px; color: #333;">${params.temporaryPassword}</p>
+              <p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">Usa esta contraseña para iniciar sesión con tu correo electrónico. Te recomendamos cambiarla al ingresar.</p>
+            </div>`
+        : '';
+
       const { data, error } = await resend.emails.send({
         from: 'Workshop Pro <onboarding@resend.dev>', // Cambiar por dominio verificado en prod
         to: [params.email],
@@ -25,7 +35,8 @@ export const emailService = {
                 Configurar mi cuenta y entrar
               </a>
             </div>
-            <p style="color: #666; font-size: 14px;">Este enlace te permitirá entrar automáticamente y te recomendamos cambiar tu contraseña al ingresar en la sección de Mi Perfil.</p>
+            ${passwordSection}
+            <p style="color: #666; font-size: 14px;">También puedes entrar con el enlace de arriba (acceso automático) o usando tu correo y contraseña temporal.</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
             <p style="color: #999; font-size: 12px; text-align: center;">Workshop Pro - El sistema líder para gestión de reparaciones.</p>
           </div>

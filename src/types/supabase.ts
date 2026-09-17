@@ -274,6 +274,7 @@ export type Database = {
           is_active: boolean | null
           logo_url: string | null
           name: string
+          organizer_id: string | null
           settings: Json | null
           slug: string
           subscription_plan: string | null
@@ -286,6 +287,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name: string
+          organizer_id?: string | null
           settings?: Json | null
           slug: string
           subscription_plan?: string | null
@@ -298,13 +300,22 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
+          organizer_id?: string | null
           settings?: Json | null
           slug?: string
           subscription_plan?: string | null
           tax_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       repair_orders: {
         Row: {
@@ -779,6 +790,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      initialize_new_organization: {
+        Args: {
+          p_user_id: string
+          p_org_name: string
+          p_org_slug: string
+          p_full_name?: string
+        }
+        Returns: undefined
+      }
       increment_inventory_stock: {
         Args: { item_id: string; quantity_change: number }
         Returns: undefined

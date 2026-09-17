@@ -14,7 +14,8 @@
       "Bash(npm run dev:*)",
       "Bash(grep:*)",
       "Bash(npm run lint)",
-      "Bash(npm run type-check:*)"
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

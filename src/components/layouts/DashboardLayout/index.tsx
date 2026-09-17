@@ -188,7 +188,7 @@ export default function DashboardLayout({
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <MenuItem onClick={handleUserMenuClose}>
+        <MenuItem onClick={() => { handleUserMenuClose(); router.push('/settings/profile'); }}>
           <ListItemIcon>
             <Icon icon="eva:person-outline" width={20} />
           </ListItemIcon>
@@ -241,7 +241,7 @@ export default function DashboardLayout({
               keepMounted: true,
             }}
             PaperProps={{
-              sx: { width: DRAWER_WIDTH },
+              sx: { width: { xs: '85vw', sm: DRAWER_WIDTH }, maxWidth: DRAWER_WIDTH },
             }}
           >
             <SidebarItems onCloseMobile={() => setMobileOpen(false)} />

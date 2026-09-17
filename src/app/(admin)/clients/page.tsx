@@ -13,8 +13,10 @@ import {
   Skeleton,
   Alert,
   Snackbar,
+  Stack,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import { Icon } from '@iconify/react';
 import { useClients } from '@/hooks/useClients';
 import ClientForm from '@/components/clients/ClientForm';
@@ -23,6 +25,8 @@ import ClientHistoryDialog from '@/components/clients/ClientHistoryDialog';
 import { Client, CreateClientRequest, UpdateClientRequest } from '@/types/client';
 
 export default function ClientsPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const {
     clients,
     loading,
@@ -104,7 +108,7 @@ export default function ClientsPage() {
     <Container maxWidth="xl">
       <Box sx={{ py: 3 }}>
         {/* Header */}
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
           <Box>
             <Typography variant="h4" component="h1" gutterBottom>
               Gestión de Clientes
@@ -117,6 +121,8 @@ export default function ClientsPage() {
             variant="contained"
             startIcon={<Icon icon="eva:plus-fill" />}
             onClick={handleNewClient}
+            fullWidth={isMobile}
+            sx={{ flexShrink: 0 }}
           >
             Nuevo Cliente
           </Button>
@@ -125,29 +131,27 @@ export default function ClientsPage() {
         {/* Search and Filters */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} md={6} component="div">
-                <TextField
-                  fullWidth
-                  placeholder="Buscar por nombre o teléfono..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Icon icon="eva:search-fill" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={3} component="div">
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+              <TextField
+                fullWidth
+                placeholder="Buscar por nombre o teléfono..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Icon icon="eva:search-fill" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ flex: 1 }}
+              />
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                 <Button
                   variant="outlined"
                   onClick={handleSearch}
                   disabled={loading}
-                  sx={{ mr: 1 }}
                 >
                   Buscar
                 </Button>
@@ -161,13 +165,11 @@ export default function ClientsPage() {
                 >
                   Limpiar
                 </Button>
-              </Grid>
-              <Grid item xs={12} md={3} component="div">
-                <Typography variant="body2" color="text.secondary" textAlign="right">
-                  Total: {total} clientes
-                </Typography>
-              </Grid>
-            </Grid>
+              </Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0, textAlign: { xs: 'left', md: 'right' } }}>
+                Total: {total} clientes
+              </Typography>
+            </Stack>
           </CardContent>
         </Card>
 

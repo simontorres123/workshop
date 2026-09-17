@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { supabaseAdmin } from '@/lib/supabase/client';
 import { emailService } from '@/services/email.service';
+
+function generateTemporaryPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*';
+  const bytes = crypto.randomBytes(12);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,28 +70,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Todos los campos son requeridos' }, { status: 400 });
     }
 
-    // 2. Obtener o crear el usuario Organizador
+    // 2. Intentar crear usuario; si ya existe, buscarlo
     let newUserId: string;
-    
-    // Primero verificar si el usuario ya existe para evitar error 'email_exists'
-    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
-    const userFound = existingUser.users.find(u => u.email === organizerEmail);
+    let userFound = false;
+    let tempPassword: string | undefined;
 
-    if (userFound) {
-      newUserId = userFound.id;
-      console.log('Usuario existente encontrado, vinculando a nueva organización:', newUserId);
-    } else {
-      // Crear nuevo usuario si no existe
-      const { data: userData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-        email: organizerEmail,
-        email_confirm: true,
-        user_metadata: { full_name: organizerName }
-      });
+    tempPassword = generateTemporaryPassword();
+    const { data: userData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      email: organizerEmail,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: organizerName }
+    });
 
-      if (createUserError) {
+    if (createUserError) {
+      // Si el correo ya existe en Auth, buscar el usuario existente
+      if (createUserError.message.includes('already been registered') || createUserError.status === 422) {
+        tempPassword = undefined; // No aplica password temporal para usuarios existentes
+        userFound = true;
+
+        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = users.find(u => u.email === organizerEmail);
+
+        if (!existingUser) {
+          return NextResponse.json({ success: false, error: 'Error buscando usuario existente' }, { status: 500 });
+        }
+        newUserId = existingUser.id;
+
+        // Verificar si ya pertenece a una organización
+        const { data: existingProfile } = await supabaseAdmin
+          .from('user_profiles')
+          .select('organization_id')
+          .eq('id', existingUser.id)
+          .single();
+
+        if (existingProfile?.organization_id) {
+          return NextResponse.json({
+            success: false,
+            error: 'Este correo ya está asociado a otra organización.',
+          }, { status: 409 });
+        }
+
+        console.log('Usuario existente encontrado sin organización, vinculando:', newUserId);
+      } else {
         console.error('Error creando usuario organizador:', createUserError);
         return NextResponse.json({ success: false, error: `Error creando usuario: ${createUserError.message}` }, { status: 500 });
       }
+    } else {
       newUserId = userData.user.id;
     }
 
@@ -155,12 +187,13 @@ export async function POST(request: NextRequest) {
     if (linkError) {
       console.warn('No se pudo generar el link:', linkError);
     } else {
-      // 5. Enviar correo vía Resend
+      // 5. Enviar correo vía Resend (con password temporal si es usuario nuevo)
       await emailService.sendOrganizerInvitation({
         email: organizerEmail,
         fullName: organizerName,
         orgName: name,
-        invitationLink: linkData.properties.action_link
+        invitationLink: linkData.properties.action_link,
+        temporaryPassword: tempPassword,
       });
     }
     

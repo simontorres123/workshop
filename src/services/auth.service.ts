@@ -98,5 +98,16 @@ export const authService = {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) throw error;
     return session;
-  }
+  },
+
+  /**
+   * Cambiar la contraseña del usuario autenticado
+   */
+  updatePassword: async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) throw error;
+    return data;
+  },
 };

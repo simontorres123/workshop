@@ -564,7 +564,7 @@ export default function RepairsPage() {
 
         {/* Stats Cards */}
         <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <StatCard
               title="Total de Órdenes"
               value={totalOrders.toString()}
@@ -572,7 +572,7 @@ export default function RepairsPage() {
               color="primary"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <StatCard
               title="Pendientes"
               value={pendingOrders.toString()}
@@ -580,7 +580,7 @@ export default function RepairsPage() {
               color="warning"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <StatCard
               title="En Reparación"
               value={inRepairOrders.toString()}
@@ -588,7 +588,7 @@ export default function RepairsPage() {
               color="info"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <StatCard
               title="Completadas"
               value={completedOrders.toString()}
