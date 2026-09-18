@@ -88,6 +88,8 @@ export default function RepairOrderDetails({
     color: 'default' as const,
     icon: 'eva:file-outline'
   };
+  const warrantyBaseDate = order.deliveredAt || order.completedAt;
+  const storageBaseDate = order.completedAt || order.deliveredAt;
 
   return (
     <Dialog
@@ -339,7 +341,8 @@ export default function RepairOrderDetails({
                         if (!order.warrantyPeriodMonths) {
                           return 'text.disabled';
                         }
-                        const baseDate = order.deliveredAt || order.completedAt || order.createdAt;
+                        const baseDate = warrantyBaseDate;
+                        if (!baseDate) return 'text.disabled';
                         const warrantyExpiration = addMonths(new Date(baseDate), order.warrantyPeriodMonths);
                         const daysRemaining = differenceInDays(warrantyExpiration, new Date());
                         if (daysRemaining < 0) return 'error.main';
@@ -355,7 +358,8 @@ export default function RepairOrderDetails({
                       }
                       
                       // Usar fecha de entrega si existe, sino fecha de completado, sino fecha de creación
-                      const baseDate = order.deliveredAt || order.completedAt || order.createdAt;
+                      const baseDate = warrantyBaseDate;
+                      if (!baseDate) return 'Se calculará al entregar el aparato';
                       const warrantyExpiration = addMonths(new Date(baseDate), order.warrantyPeriodMonths);
                       const daysRemaining = differenceInDays(warrantyExpiration, new Date());
                       const dateText = format(warrantyExpiration, 'dd \'de\' MMMM \'de\' yyyy', { locale: es });
@@ -389,7 +393,8 @@ export default function RepairOrderDetails({
                         if (!order.storagePeriodMonths) {
                           return 'text.disabled';
                         }
-                        const baseDate = order.deliveredAt || order.completedAt || order.createdAt;
+                        const baseDate = storageBaseDate;
+                        if (!baseDate) return 'text.disabled';
                         const storageExpiration = addMonths(new Date(baseDate), order.storagePeriodMonths);
                         const daysRemaining = differenceInDays(storageExpiration, new Date());
                         if (daysRemaining < 0) return 'error.main';
@@ -405,7 +410,8 @@ export default function RepairOrderDetails({
                       }
                       
                       // Usar fecha de entrega si existe, sino fecha de completado, sino fecha de creación
-                      const baseDate = order.deliveredAt || order.completedAt || order.createdAt;
+                      const baseDate = storageBaseDate;
+                      if (!baseDate) return 'Se calculará al marcarlo como reparado';
                       const storageExpiration = addMonths(new Date(baseDate), order.storagePeriodMonths);
                       const daysRemaining = differenceInDays(storageExpiration, new Date());
                       const dateText = format(storageExpiration, 'dd \'de\' MMMM \'de\' yyyy', { locale: es });

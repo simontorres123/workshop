@@ -101,6 +101,8 @@ export default function RepairOrderForm({
   const [submitError, setSubmitError] = useState<string>('');
   const [images, setImages] = useState<ImageMetadata[]>([]);
   const [validationToastOpen, setValidationToastOpen] = useState(false);
+  const [warrantyMonthsInput, setWarrantyMonthsInput] = useState(String(order?.warrantyPeriodMonths ?? 3));
+  const [storageMonthsInput, setStorageMonthsInput] = useState(String(order?.storagePeriodMonths ?? 1));
 
   // Inicializar imágenes si estamos editando una orden existente
   useEffect(() => {
@@ -120,6 +122,11 @@ export default function RepairOrderForm({
       setImages(existingImages);
     }
   }, [order]);
+
+  useEffect(() => {
+    setWarrantyMonthsInput(String(order?.warrantyPeriodMonths ?? 3));
+    setStorageMonthsInput(String(order?.storagePeriodMonths ?? 1));
+  }, [order?.id, order?.warrantyPeriodMonths, order?.storagePeriodMonths]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -518,16 +525,22 @@ export default function RepairOrderForm({
                   fullWidth
                   label="Garantía (meses)"
                   type="number"
-                  value={formData.warrantyPeriodMonths || 3}
+                  value={warrantyMonthsInput}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 3;
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      warrantyPeriodMonths: Math.min(Math.max(value, 1), 60)
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    setWarrantyMonthsInput(rawValue);
+                    setFormData(prev => ({
+                      ...prev,
+                      warrantyPeriodMonths: rawValue ? Math.min(Number(rawValue), 60) : undefined,
                     }));
                   }}
+                  onBlur={() => {
+                    const value = Math.min(Math.max(Number(warrantyMonthsInput) || 3, 1), 60);
+                    setWarrantyMonthsInput(String(value));
+                    setFormData(prev => ({ ...prev, warrantyPeriodMonths: value }));
+                  }}
                   disabled={loading || isSubmitting}
-                  helperText="Período de garantía en meses (1-60)"
+                  helperText="1-60 meses · inicia al entregar el aparato"
                   inputProps={{ min: 1, max: 60 }}
                   InputProps={{
                     startAdornment: <Icon icon="eva:shield-outline" width={20} style={{ marginRight: 8 }} />
@@ -538,16 +551,22 @@ export default function RepairOrderForm({
                   fullWidth
                   label="Almacenamiento (meses)"
                   type="number"
-                  value={formData.storagePeriodMonths || 1}
+                  value={storageMonthsInput}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 1;
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      storagePeriodMonths: Math.min(Math.max(value, 1), 24)
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    setStorageMonthsInput(rawValue);
+                    setFormData(prev => ({
+                      ...prev,
+                      storagePeriodMonths: rawValue ? Math.min(Number(rawValue), 24) : undefined,
                     }));
                   }}
+                  onBlur={() => {
+                    const value = Math.min(Math.max(Number(storageMonthsInput) || 1, 1), 24);
+                    setStorageMonthsInput(String(value));
+                    setFormData(prev => ({ ...prev, storagePeriodMonths: value }));
+                  }}
                   disabled={loading || isSubmitting}
-                  helperText="Período de almacenamiento en meses (1-24)"
+                  helperText="1-24 meses · inicia al quedar listo para recoger"
                   inputProps={{ min: 1, max: 24 }}
                   InputProps={{
                     startAdornment: <Icon icon="eva:archive-outline" width={20} style={{ marginRight: 8 }} />

@@ -20,9 +20,12 @@ export async function PATCH(
     const validStatuses = [
       'pending_diagnosis',
       'diagnosis_confirmed', 
+      'repair_accepted',
       'in_repair',
       'repaired',
+      'delivered',
       'completed',
+      'repair_rejected',
       'cancelled'
     ];
 
@@ -37,6 +40,13 @@ export async function PATCH(
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
 
     const updatedOrder = await repairOrderRepository.updateStatus(id, status, note);
+
+    if (!updatedOrder) {
+      return NextResponse.json(
+        { success: false, error: 'No se pudo actualizar el estado de la orden' },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({
       success: true,
