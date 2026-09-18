@@ -36,7 +36,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import RepairReceiptDialog from '@/components/repairs/RepairReceiptDialog';
-import { normalizePhoneNumber } from '@/utils/phone';
+import { formatWhatsAppPhoneNumber, normalizePhoneNumber } from '@/utils/phone';
 
 const canNotifyRepairOwner = (order: RepairOrder) =>
   order.status.toLowerCase() === RepairStatus.REPAIRED &&
@@ -44,7 +44,7 @@ const canNotifyRepairOwner = (order: RepairOrder) =>
   normalizePhoneNumber(order.clientPhone || '').length >= 10;
 
 const openRepairReadyWhatsApp = (order: RepairOrder) => {
-  const phone = normalizePhoneNumber(order.clientPhone || '');
+  const phone = formatWhatsAppPhoneNumber(order.clientPhone || '');
   if (phone.length < 10 || typeof window === 'undefined') return;
 
   const trackingUrl = order.trackingUrl || `${window.location.origin}/track/${encodeURIComponent(order.folio)}`;
