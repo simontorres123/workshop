@@ -170,9 +170,9 @@ export default function RedesignedDashboard() {
         ))}
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.35fr .65fr' }, gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.15fr .85fr' }, gap: 2, mb: 3 }}>
         <Card sx={surfaceSx}><CardContent><Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}><Box><Typography variant="h6">Requiere atención</Typography><Typography variant="body2" color="text.secondary">Alertas de almacenamiento y entregas pendientes</Typography></Box><Chip color={urgentCount ? 'error' : 'success'} label={urgentCount ? `${urgentCount} críticas` : 'Todo en orden'} size="small" /></Box><StorageExpirationAlerts /></CardContent></Card>
-        <Card sx={surfaceSx}><CardContent><Typography variant="h6" gutterBottom>Estado de reparaciones</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Distribución de órdenes del periodo</Typography><RepairStatusOverview compact /></CardContent></Card>
+        <Card sx={surfaceSx}><CardContent><Typography variant="h6" gutterBottom>Estado de reparaciones</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Distribución de órdenes del periodo</Typography><RepairStatusOverview compact showTitle={false} /></CardContent></Card>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 3 }}>

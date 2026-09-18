@@ -16,6 +16,7 @@ import {
 import { Icon } from '@iconify/react';
 import { useBlobStorage } from '@/hooks/useBlobStorage';
 import { ImageMetadata } from '@/types';
+import { compressImageForUpload } from '@/utils/imageCompression';
 
 interface ImagePreview {
   file: File;
@@ -48,6 +49,7 @@ export default function ImageUpload({
   const [uploadedImages, setUploadedImages] = useState<ImageMetadata[]>(initialImages);
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string>('');
+  const [optimizing, setOptimizing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { uploading, error: uploadError, uploadImages, deleteImages, clearError } = useBlobStorage();
@@ -100,10 +102,20 @@ export default function ImageUpload({
       return;
     }
 
+    // Las fotos tomadas con celular suelen pesar varios megabytes. Se optimizan
+    // antes de generar la vista previa o enviarlas a Storage.
+    setOptimizing(true);
+    let optimizedFiles: File[] = validFiles;
+    try {
+      optimizedFiles = await Promise.all(validFiles.map(compressImageForUpload));
+    } finally {
+      setOptimizing(false);
+    }
+
     if (autoUpload) {
       // Subir automáticamente
       try {
-        const newUploadedImages = await uploadImages(validFiles, container, folder);
+        const newUploadedImages = await uploadImages(optimizedFiles, container, folder);
         const allUploadedImages = [...uploadedImages, ...newUploadedImages];
         setUploadedImages(allUploadedImages);
         onImagesChange(allUploadedImages);
@@ -112,7 +124,7 @@ export default function ImageUpload({
       }
     } else {
       // Mantener localmente para subir después
-      const newPreviews: ImagePreview[] = validFiles.map(file => ({
+      const newPreviews: ImagePreview[] = optimizedFiles.map(file => ({
         file,
         url: URL.createObjectURL(file),
         id: Math.random().toString(36).substr(2, 9)
@@ -235,8 +247,7 @@ export default function ImageUpload({
           o haz clic para seleccionar archivos
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          {acceptedTypes.map(type => type.split('/')[1].toUpperCase()).join(', ')} • 
-          Máx. {maxSizeInMB}MB cada una • 
+          JPG, PNG o WebP • Se optimizan a menos de 900 KB •
           Hasta {maxImages} imágenes
         </Typography>
       </Box>
@@ -258,11 +269,11 @@ export default function ImageUpload({
       )}
 
       {/* Loading */}
-      {uploading && (
+      {(optimizing || uploading) && (
         <Box sx={{ mt: 2 }}>
           <LinearProgress />
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-            Subiendo imágenes...
+            {optimizing ? 'Optimizando imágenes…' : 'Subiendo imágenes…'}
           </Typography>
         </Box>
       )}

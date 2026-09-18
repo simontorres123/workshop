@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RepairOrder, RepairStatus } from '@/types/repair';
 import { calculateStorageAlerts } from '@/utils/storageAlerts';
 import { getRepairedOrdersWaitingPickup, DashboardFilters } from '@/lib/database/dashboard-queries';
-import { getTenantContext } from '@/app/api/repairs/route';
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function GET(request: NextRequest) {
   try {

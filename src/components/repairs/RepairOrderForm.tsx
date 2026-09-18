@@ -15,7 +15,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
 import { Icon } from '@iconify/react';
@@ -24,6 +26,7 @@ import { useRepairOrders } from '@/hooks/useRepairOrders';
 import { useAuthStore } from '@/store/auth.store';
 import ImageUpload from '@/components/ui/ImageUpload';
 import { ImageMetadata } from '@/types';
+import { DeviceCatalogEntry } from '@/types/device';
 
 interface RepairOrderFormProps {
   order?: RepairOrder | null;
@@ -83,8 +86,14 @@ export default function RepairOrderForm({
     clientName: order?.clientName || '',
     clientPhone: order?.clientPhone || '',
     clientEmail: order?.clientEmail || '',
-    deviceType: order?.deviceType || '',
-    deviceBrand: order?.deviceBrand || '',
+    // Los valores personalizados se representan como "Otro" en el Select;
+    // el texto real se conserva en los campos custom correspondientes.
+    deviceType: order?.deviceType
+      ? (deviceTypes.includes(order.deviceType) ? order.deviceType : 'Otro')
+      : '',
+    deviceBrand: order?.deviceBrand
+      ? (deviceBrands.includes(order.deviceBrand) ? order.deviceBrand : 'Otro')
+      : '',
     deviceModel: order?.deviceModel || '',
     deviceSerial: order?.deviceSerial || '',
     deviceDescription: order?.deviceDescription || '',
@@ -103,6 +112,18 @@ export default function RepairOrderForm({
   const [validationToastOpen, setValidationToastOpen] = useState(false);
   const [warrantyMonthsInput, setWarrantyMonthsInput] = useState(String(order?.warrantyPeriodMonths ?? 3));
   const [storageMonthsInput, setStorageMonthsInput] = useState(String(order?.storagePeriodMonths ?? 1));
+  const [catalog, setCatalog] = useState<DeviceCatalogEntry[]>([]);
+  const [customDeviceType, setCustomDeviceType] = useState(
+    order?.deviceType && !deviceTypes.includes(order.deviceType) ? order.deviceType : ''
+  );
+  const [customBrand, setCustomBrand] = useState(order?.deviceBrand && !deviceBrands.includes(order.deviceBrand) ? order.deviceBrand : '');
+
+  useEffect(() => {
+    fetch('/api/device-catalog')
+      .then((response) => response.json())
+      .then((result) => { if (result.success) setCatalog(result.data || []); })
+      .catch(() => undefined);
+  }, []);
 
   // Inicializar imágenes si estamos editando una orden existente
   useEffect(() => {
@@ -141,11 +162,11 @@ export default function RepairOrderForm({
       newErrors.clientPhone = 'El teléfono debe tener al menos 10 dígitos';
     }
 
-    if (!formData.deviceType) {
+    if (!formData.deviceType || (formData.deviceType === 'Otro' && !customDeviceType.trim())) {
       newErrors.deviceType = 'El tipo de dispositivo es obligatorio';
     }
 
-    if (!formData.deviceBrand?.trim()) {
+    if (!formData.deviceBrand?.trim() || (formData.deviceBrand === 'Otro' && !customBrand.trim())) {
       newErrors.deviceBrand = 'La marca es obligatoria';
     }
 
@@ -215,6 +236,8 @@ export default function RepairOrderForm({
       
       const orderData = {
         ...formData,
+        deviceType: formData.deviceType === 'Otro' ? customDeviceType.trim() : formData.deviceType,
+        deviceBrand: formData.deviceBrand === 'Otro' ? customBrand.trim() : formData.deviceBrand,
         images: allImageUrls
       };
 
@@ -376,7 +399,11 @@ export default function RepairOrderForm({
                   <Select
                     value={formData.deviceType}
                     label="Tipo de Dispositivo *"
-                    onChange={(e) => handleChange('deviceType')({ target: { value: e.target.value } })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleChange('deviceType')({ target: { value } });
+                      if (value !== 'Otro') setCustomDeviceType('');
+                    }}
                     disabled={loading || isSubmitting}
                   >
                     {deviceTypes.map((type) => (
@@ -390,6 +417,17 @@ export default function RepairOrderForm({
                       {errors.deviceType}
                     </Typography>
                   )}
+                  {formData.deviceType === 'Otro' && (
+                    <TextField
+                      fullWidth
+                      sx={{ mt: 1.5 }}
+                      label="Especifica el tipo de dispositivo *"
+                      value={customDeviceType}
+                      onChange={(event) => setCustomDeviceType(event.target.value)}
+                      disabled={loading || isSubmitting}
+                      error={!!errors.deviceType && !customDeviceType.trim()}
+                    />
+                  )}
                 </FormControl>
                 <FormControl data-validation-field="deviceBrand" fullWidth error={!!errors.deviceBrand} size="medium">
                   <InputLabel>Marca *</InputLabel>
@@ -399,7 +437,7 @@ export default function RepairOrderForm({
                     onChange={(e) => handleChange('deviceBrand')({ target: { value: e.target.value } })}
                     disabled={loading || isSubmitting}
                   >
-                    {deviceBrands.map((brand) => (
+                    {Array.from(new Set([...deviceBrands, ...catalog.filter((entry) => entry.deviceType === formData.deviceType).map((entry) => entry.brand)])).map((brand) => (
                       <MenuItem key={brand} value={brand}>
                         {brand}
                       </MenuItem>
@@ -409,6 +447,17 @@ export default function RepairOrderForm({
                     <Typography variant="caption" color="error" sx={{ mt: 1, ml: 2, display: 'block' }}>
                       {errors.deviceBrand}
                     </Typography>
+                  )}
+                  {formData.deviceBrand === 'Otro' && (
+                    <TextField
+                      fullWidth
+                      sx={{ mt: 1.5 }}
+                      label="Especifica la marca *"
+                      value={customBrand}
+                      onChange={(event) => setCustomBrand(event.target.value)}
+                      disabled={loading || isSubmitting}
+                      error={!!errors.deviceBrand && !customBrand.trim()}
+                    />
                   )}
                 </FormControl>
               </Box>
@@ -442,6 +491,12 @@ export default function RepairOrderForm({
                 disabled={loading || isSubmitting}
                 placeholder="Ej: Lavadora automática de 10kg, color blanco, con display digital"
               />
+              {!order && (
+                <FormControlLabel
+                  control={<Checkbox checked={Boolean(formData.saveDeviceForClient)} onChange={(event) => setFormData((prev) => ({ ...prev, saveDeviceForClient: event.target.checked }))} />}
+                  label="Guardar este aparato en el perfil del cliente para futuras órdenes"
+                />
+              )}
             </Stack>
           </CardContent>
         </Card>

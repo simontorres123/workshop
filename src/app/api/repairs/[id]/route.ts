@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { UpdateRepairOrderRequest } from '@/types/repair';
 import { blobStorageService } from '@/services/blob-storage.service';
-import { getTenantContext } from '../route';
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function GET(
   request: NextRequest,

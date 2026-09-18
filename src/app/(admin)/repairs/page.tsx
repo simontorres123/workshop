@@ -36,6 +36,32 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import RepairReceiptDialog from '@/components/repairs/RepairReceiptDialog';
+import { normalizePhoneNumber } from '@/utils/phone';
+
+const canNotifyRepairOwner = (order: RepairOrder) =>
+  order.status.toLowerCase() === RepairStatus.REPAIRED &&
+  !order.deliveredAt &&
+  normalizePhoneNumber(order.clientPhone || '').length >= 10;
+
+const openRepairReadyWhatsApp = (order: RepairOrder) => {
+  const phone = normalizePhoneNumber(order.clientPhone || '');
+  if (phone.length < 10 || typeof window === 'undefined') return;
+
+  const trackingUrl = order.trackingUrl || `${window.location.origin}/track/${encodeURIComponent(order.folio)}`;
+  const message = [
+    `Hola, ${order.clientName}.`,
+    '',
+    `Te informamos que tu aparato ${order.deviceBrand} ${order.deviceType}${order.deviceModel ? ` ${order.deviceModel}` : ''}, con folio ${order.folio}, ya fue reparado y está listo para recogerlo en nuestro taller.`,
+    '',
+    'Te pedimos pasar a recogerlo a la brevedad.',
+    '',
+    'Por favor responde “Confirmo” para confirmar que recibiste este aviso.',
+    '',
+    `Puedes consultar el estatus aquí: ${trackingUrl}`,
+  ].join('\n');
+
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+};
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
@@ -100,6 +126,7 @@ export default function RepairsPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  const [statusUpdateError, setStatusUpdateError] = useState('');
 
   const { organizationId } = useAuth();
   const { orders, loading, error, fetchOrders, deleteOrder, updateOrderStatus, updateOrderInList, clearError } = useRepairOrders();
@@ -208,6 +235,7 @@ export default function RepairsPage() {
       setSelectedOrder(order);
       setNewStatus(getNextRepairStatus(order.status));
       setStatusNote('');
+      setStatusUpdateError('');
       setOpenStatusDialog(true);
     }
   };
@@ -216,6 +244,7 @@ export default function RepairsPage() {
     if (!selectedOrder || !newStatus) return;
 
     setUpdatingStatus(true);
+    setStatusUpdateError('');
     try {
       await updateOrderStatus(selectedOrder.id, newStatus, statusNote || undefined);
       setOpenStatusDialog(false);
@@ -225,6 +254,7 @@ export default function RepairsPage() {
       await fetchOrders();
     } catch (error) {
       console.error('Error al actualizar estado:', error);
+      setStatusUpdateError(error instanceof Error ? error.message : 'No se pudo actualizar el estado de la orden');
     } finally {
       setUpdatingStatus(false);
     }
@@ -235,6 +265,7 @@ export default function RepairsPage() {
     setSelectedOrder(null);
     setNewStatus('');
     setStatusNote('');
+    setStatusUpdateError('');
   };
 
   // Estadísticas
@@ -294,7 +325,7 @@ export default function RepairsPage() {
     {
       field: 'actions',
       headerName: 'Acciones',
-      width: 140,
+      width: 156,
       sortable: false,
       renderCell: (params: any) => (
         <Box sx={{ 
@@ -334,6 +365,17 @@ export default function RepairsPage() {
                 <Icon icon="eva:arrow-forward-outline" width={16} />
               </IconButton>
             </Tooltip>
+            {canNotifyRepairOwner(params.row) && (
+              <Tooltip title="Avisar al cliente por WhatsApp" arrow>
+                <IconButton
+                  size="small"
+                  onClick={() => openRepairReadyWhatsApp(params.row)}
+                  sx={{ color: '#25D366', minWidth: 28, minHeight: 28 }}
+                >
+                  <Icon icon="logos:whatsapp-icon" width={16} />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="Eliminar" arrow>
               <IconButton 
                 size="small" 
@@ -410,7 +452,7 @@ export default function RepairsPage() {
     {
       field: 'actions',
       headerName: 'Acciones',
-      width: 120,
+      width: 160,
       sortable: false,
       renderCell: (params: any) => (
         <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -439,6 +481,17 @@ export default function RepairsPage() {
               <Icon icon="eva:arrow-forward-outline" />
             </IconButton>
           </Tooltip>
+          {canNotifyRepairOwner(params.row) && (
+            <Tooltip title="Avisar al cliente por WhatsApp" arrow>
+              <IconButton
+                size="small"
+                onClick={() => openRepairReadyWhatsApp(params.row)}
+                sx={{ color: '#25D366' }}
+              >
+                <Icon icon="logos:whatsapp-icon" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       )
     }
@@ -551,6 +604,17 @@ export default function RepairsPage() {
               <Icon icon="eva:arrow-forward-outline" />
             </IconButton>
           </Tooltip>
+          {canNotifyRepairOwner(params.row) && (
+            <Tooltip title="Avisar al cliente por WhatsApp" arrow>
+              <IconButton
+                size="small"
+                onClick={() => openRepairReadyWhatsApp(params.row)}
+                sx={{ color: '#25D366' }}
+              >
+                <Icon icon="logos:whatsapp-icon" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Eliminar orden permanentemente" arrow>
             <IconButton 
               size="small" 
@@ -889,8 +953,13 @@ export default function RepairsPage() {
             )}
 
             {newStatus ? (
-              <Alert severity="info" sx={{ mb: 3 }} icon={<Icon icon="eva:arrow-forward-outline" />}>
-                Siguiente paso: <strong>{getStatusLabel(newStatus)}</strong>
+              <Alert
+                severity={newStatus === RepairStatus.REPAIR_REJECTED ? 'warning' : 'info'}
+                sx={{ mb: 3 }}
+                icon={<Icon icon={newStatus === RepairStatus.REPAIR_REJECTED ? 'eva:alert-triangle-outline' : 'eva:arrow-forward-outline'} />}
+              >
+                {newStatus === RepairStatus.REPAIR_REJECTED ? 'Rechazo seleccionado. ' : 'Siguiente paso: '}
+                <strong>{getStatusLabel(newStatus)}</strong>
               </Alert>
             ) : (
               <Alert severity="success" sx={{ mb: 3 }}>
@@ -898,17 +967,23 @@ export default function RepairsPage() {
               </Alert>
             )}
 
+            {statusUpdateError && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {statusUpdateError}
+              </Alert>
+            )}
+
             {selectedOrder?.status === RepairStatus.DIAGNOSIS_CONFIRMED && (
               <Button
                 color="error"
-                variant="text"
+                variant={newStatus === RepairStatus.REPAIR_REJECTED ? 'contained' : 'text'}
                 size="small"
                 onClick={() => setNewStatus(RepairStatus.REPAIR_REJECTED)}
                 disabled={updatingStatus}
                 startIcon={<Icon icon="eva:close-circle-outline" />}
                 sx={{ mb: 2 }}
               >
-                Marcar reparación como rechazada
+                {newStatus === RepairStatus.REPAIR_REJECTED ? 'Rechazo seleccionado' : 'Marcar reparación como rechazada'}
               </Button>
             )}
 
@@ -932,11 +1007,18 @@ export default function RepairsPage() {
             </Button>
             <Button
               onClick={handleConfirmStatusChange}
+              color={newStatus === RepairStatus.REPAIR_REJECTED ? 'error' : 'primary'}
               variant="contained"
               disabled={updatingStatus || !newStatus}
               startIcon={updatingStatus ? undefined : <Icon icon="eva:checkmark-outline" />}
             >
-              {updatingStatus ? 'Actualizando...' : newStatus ? `Avanzar a ${getStatusLabel(newStatus)}` : 'Proceso completado'}
+              {updatingStatus
+                ? 'Actualizando...'
+                : newStatus === RepairStatus.REPAIR_REJECTED
+                  ? 'Confirmar rechazo'
+                  : newStatus
+                    ? `Avanzar a ${getStatusLabel(newStatus)}`
+                    : 'Proceso completado'}
             </Button>
           </DialogActions>
         </Dialog>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { RepairOrderSearchFilters } from '@/types/repair';
-import { getTenantContext } from '@/app/api/repairs/route';
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function GET(request: NextRequest) {
   try {

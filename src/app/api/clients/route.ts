@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { CreateClientRequest, ClientSearchFilters } from '@/types/client';
-
-const clientRepository = RepositoryFactory.getClients();
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function GET(request: NextRequest) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    const clientRepository = RepositoryFactory.getClients(ctx);
     const { searchParams } = new URL(request.url);
     
     const filters: ClientSearchFilters = {
@@ -37,6 +39,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    const clientRepository = RepositoryFactory.getClients(ctx);
     const body = await request.json();
     const clientData: CreateClientRequest = body;
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
-import { getTenantContext } from '../../route';
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function PATCH(
   request: NextRequest,
@@ -37,6 +37,12 @@ export async function PATCH(
     }
 
     const ctx = await getTenantContext(request);
+    if (!ctx) {
+      return NextResponse.json(
+        { success: false, error: 'Sesión expirada o usuario sin organización asignada' },
+        { status: 401 }
+      );
+    }
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
 
     const updatedOrder = await repairOrderRepository.updateStatus(id, status, note);

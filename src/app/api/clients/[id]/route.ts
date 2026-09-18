@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { UpdateClientRequest } from '@/types/client';
-
-const clientRepository = RepositoryFactory.getClients();
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    const clientRepository = RepositoryFactory.getClients(ctx);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const includeHistory = searchParams.get('includeHistory') === 'true';
@@ -49,6 +51,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    const clientRepository = RepositoryFactory.getClients(ctx);
     const { id } = await params;
     const body: UpdateClientRequest = await request.json();
 
@@ -99,6 +104,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    const clientRepository = RepositoryFactory.getClients(ctx);
     const { id } = await params;
 
     if (!id) {

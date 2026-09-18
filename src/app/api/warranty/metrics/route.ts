@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepairOrder, WarrantyClaim } from '@/types/repair';
 import { getWarrantyMetrics, DashboardFilters } from '@/lib/database/dashboard-queries';
-import { getTenantContext } from '@/app/api/repairs/route';
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 export async function GET(request: NextRequest) {
   try {

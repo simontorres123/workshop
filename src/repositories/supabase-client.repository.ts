@@ -2,16 +2,26 @@ import { supabase } from '@/lib/supabase/client';
 import { Client, CreateClientRequest, UpdateClientRequest, ClientSearchFilters } from '@/types/client';
 import { Database } from '@/types/supabase';
 import { useAuthStore } from '@/store/auth.store';
+import { normalizePhoneNumber } from '@/utils/phone';
+
+export interface ClientTenantContext {
+  organizationId: string;
+}
 
 type DBClient = Database['public']['Tables']['clients']['Row'];
 
 export class SupabaseClientRepository {
+  constructor(private readonly context?: ClientTenantContext) {}
+
+  private getOrganizationId(): string {
+    return this.context?.organizationId || useAuthStore.getState().getOrganizationId() || '';
+  }
   /**
    * Obtiene todos los clientes de la organización actual
    */
   async findAll(): Promise<Client[]> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
+      const orgId = this.getOrganizationId();
       if (!orgId) return [];
 
       const { data, error } = await supabase
@@ -33,7 +43,7 @@ export class SupabaseClientRepository {
    */
   async findById(id: string): Promise<Client | null> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
+      const orgId = this.getOrganizationId();
       if (!orgId) return null;
       
       const { data, error } = await supabase
@@ -56,7 +66,7 @@ export class SupabaseClientRepository {
    */
   async create(data: CreateClientRequest): Promise<Client | null> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
+      const orgId = this.getOrganizationId();
       if (!orgId) throw new Error('Usuario sin organización asignada');
 
       const { data: newClient, error } = await supabase
@@ -64,6 +74,7 @@ export class SupabaseClientRepository {
         .insert([{
           full_name: data.fullName,
           phone: data.phone,
+          phone_normalized: normalizePhoneNumber(data.phone),
           email: data.email,
           address: data.address,
           notes: data.notes,
@@ -85,12 +96,15 @@ export class SupabaseClientRepository {
    */
   async update(id: string, data: UpdateClientRequest): Promise<Client | null> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
+      const orgId = this.getOrganizationId();
       if (!orgId) return null;
       
       const updates: Partial<Database['public']['Tables']['clients']['Update']> = {};
       if (data.fullName) updates.full_name = data.fullName;
-      if (data.phone) updates.phone = data.phone;
+      if (data.phone) {
+        updates.phone = data.phone;
+        (updates as Record<string, unknown>).phone_normalized = normalizePhoneNumber(data.phone);
+      }
       if (data.email !== undefined) updates.email = data.email;
       if (data.address !== undefined) updates.address = data.address;
       if (data.notes !== undefined) updates.notes = data.notes;
@@ -116,7 +130,7 @@ export class SupabaseClientRepository {
    */
   async delete(id: string): Promise<boolean> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
+      const orgId = this.getOrganizationId();
       if (!orgId) return false;
       
       const { error } = await supabase
@@ -138,21 +152,15 @@ export class SupabaseClientRepository {
    */
   async findByPhone(phone: string): Promise<Client | null> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
-      // Si no hay orgId en el store (servidor), buscar sin filtro de org
+      const orgId = this.getOrganizationId();
+      if (!orgId) return null;
       const query = supabase
         .from('clients')
         .select('*')
-        .eq('phone', phone)
+        .eq('phone_normalized', normalizePhoneNumber(phone))
         .limit(1);
       
-      if (orgId) {
-        const { data, error } = await query.eq('organization_id', orgId);
-        if (error) throw error;
-        return data?.[0] ? this.mapToLocal(data[0]) : null;
-      }
-      
-      const { data, error } = await query;
+      const { data, error } = await query.eq('organization_id', orgId);
       if (error) throw error;
       return data?.[0] ? this.mapToLocal(data[0]) : null;
     } catch (error) {
@@ -166,7 +174,7 @@ export class SupabaseClientRepository {
    */
   async search(filters: ClientSearchFilters): Promise<Client[]> {
     try {
-      const orgId = useAuthStore.getState().getOrganizationId();
+      const orgId = this.getOrganizationId();
       if (!orgId) return [];
 
       let query = supabase.from('clients').select('*').eq('organization_id', orgId);
@@ -185,6 +193,24 @@ export class SupabaseClientRepository {
       console.error('Error searching clients in Supabase:', error);
       return [];
     }
+  }
+
+  async getByEmail(email: string): Promise<Client[]> {
+    const orgId = this.getOrganizationId();
+    if (!orgId) return [];
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('email', email)
+      .limit(1);
+    if (error) throw error;
+    return (data || []).map(db => this.mapToLocal(db));
+  }
+
+  async findByEmail(email: string): Promise<Client | null> {
+    const clients = await this.getByEmail(email);
+    return clients[0] || null;
   }
 
   private mapToLocal(db: DBClient): Client {

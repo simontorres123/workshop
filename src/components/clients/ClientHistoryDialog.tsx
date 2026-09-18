@@ -47,6 +47,7 @@ const getStatusColor = (status: string) => {
     case 'pending_diagnosis':
       return 'info';
     case 'cancelled':
+    case 'repair_rejected':
       return 'error';
     default:
       return 'default';
@@ -61,12 +62,16 @@ const getStatusLabel = (status: string) => {
       return 'Diagnóstico Confirmado';
     case 'in_repair':
       return 'En Reparación';
+    case 'repair_accepted':
+      return 'Reparación Autorizada';
     case 'repaired':
       return 'Reparado';
     case 'completed':
       return 'Completado';
     case 'cancelled':
       return 'Cancelado';
+    case 'repair_rejected':
+      return 'Reparación Rechazada';
     default:
       return status;
   }
@@ -173,7 +178,7 @@ export default function ClientHistoryDialog({
                   <CardContent sx={{ textAlign: 'center' }}>
                     <Icon icon="eva:credit-card-outline" width={40} height={40} color="success.main" />
                     <Typography variant="h4" color="success.main" sx={{ mt: 1 }}>
-                      ${clientData.totalSpent.toLocaleString()}
+                      ${(Number(clientData.totalSpent) || 0).toLocaleString('es-MX')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Total Gastado
@@ -258,7 +263,7 @@ export default function ClientHistoryDialog({
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight={600}>
-                            ${repair.totalCost.toLocaleString()}
+                            ${(Number(repair.totalCost) || 0).toLocaleString('es-MX')}
                           </Typography>
                         </TableCell>
                         <TableCell>

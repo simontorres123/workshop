@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { v4 as uuidv4 } from 'uuid';
-import { getTenantContext } from '@/app/api/repairs/route';
+import { getTenantContext } from '@/lib/auth/tenant-context';
 
 // POST /api/repair-orders/[id]/warranty-claims - Agregar reclamo de garantía
 export async function POST(

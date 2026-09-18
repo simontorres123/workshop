@@ -2,6 +2,7 @@ import { RepairOrder, RepairStatus } from '@/types/repair';
 import { calculateExpirationAlerts, WarrantyAlert } from './warrantyAlerts';
 import { addMonths, differenceInDays, format, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getWarrantyExpirationDate, getWarrantyStartDate } from './repairLifecycle';
 
 export interface WarrantyReport {
   id: string;
@@ -88,11 +89,7 @@ export function generateWarrantyReport(
   const filteredOrders = applyFilters(orders, filters);
   
   // Filtrar solo órdenes entregadas con información de garantía
-  const deliveredOrders = filteredOrders.filter(order => 
-    order.status === RepairStatus.COMPLETED && 
-    order.completedAt &&
-    order.warrantyPeriodMonths
-  );
+  const deliveredOrders = filteredOrders.filter(order => getWarrantyStartDate(order) && order.warrantyPeriodMonths);
 
   // Calcular alertas
   const alertsData = calculateExpirationAlerts(filteredOrders);
@@ -144,13 +141,13 @@ function applyFilters(orders: RepairOrder[], filters: ReportFilters): RepairOrde
 
   if (filters.dateFrom) {
     filtered = filtered.filter(order => 
-      order.completedAt && new Date(order.completedAt) >= filters.dateFrom!
+      order.deliveredAt && new Date(order.deliveredAt) >= filters.dateFrom!
     );
   }
 
   if (filters.dateTo) {
     filtered = filtered.filter(order => 
-      order.completedAt && new Date(order.completedAt) <= filters.dateTo!
+      order.deliveredAt && new Date(order.deliveredAt) <= filters.dateTo!
     );
   }
 
@@ -169,9 +166,8 @@ function applyFilters(orders: RepairOrder[], filters: ReportFilters): RepairOrde
   if (filters.warrantyStatus && filters.warrantyStatus !== 'all') {
     const now = new Date();
     filtered = filtered.filter(order => {
-      if (!order.completedAt || !order.warrantyPeriodMonths) return false;
-      
-      const warrantyExpiration = addMonths(new Date(order.completedAt), order.warrantyPeriodMonths);
+      const warrantyExpiration = getWarrantyExpirationDate(order);
+      if (!warrantyExpiration) return false;
       const daysRemaining = differenceInDays(warrantyExpiration, now);
       
       switch (filters.warrantyStatus) {
@@ -222,12 +218,12 @@ function calculateSummaryStatistics(orders: RepairOrder[], now: Date) {
   const ordersWithWarranty = orders.filter(order => order.warrantyPeriodMonths);
   
   const expiredWarranties = ordersWithWarranty.filter(order => {
-    const warrantyExpiration = addMonths(new Date(order.completedAt!), order.warrantyPeriodMonths!);
+    const warrantyExpiration = getWarrantyExpirationDate(order)!;
     return warrantyExpiration < now;
   }).length;
   
   const expiringSoon = ordersWithWarranty.filter(order => {
-    const warrantyExpiration = addMonths(new Date(order.completedAt!), order.warrantyPeriodMonths!);
+    const warrantyExpiration = getWarrantyExpirationDate(order)!;
     const daysRemaining = differenceInDays(warrantyExpiration, now);
     return daysRemaining > 0 && daysRemaining <= 30;
   }).length;
@@ -259,15 +255,16 @@ function calculateDetailedStatistics(orders: RepairOrder[]) {
   const now = new Date();
   
   orders.forEach(order => {
-    if (!order.completedAt) return;
+    const warrantyStart = getWarrantyStartDate(order);
+    if (!warrantyStart) return;
     
-    const monthKey = format(new Date(order.completedAt), 'yyyy-MM');
+    const monthKey = format(warrantyStart, 'yyyy-MM');
     const existing = monthlyStats.get(monthKey) || { delivered: 0, expired: 0, claims: 0 };
     
     existing.delivered++;
     
     if (order.warrantyPeriodMonths) {
-      const warrantyExpiration = addMonths(new Date(order.completedAt), order.warrantyPeriodMonths);
+      const warrantyExpiration = getWarrantyExpirationDate(order)!;
       if (warrantyExpiration < now) {
         existing.expired++;
       }
@@ -329,13 +326,13 @@ function calculateDetailedStatistics(orders: RepairOrder[]) {
 function findExpiredOrders(orders: RepairOrder[], now: Date) {
   return orders
     .filter(order => {
-      if (!order.completedAt || !order.warrantyPeriodMonths) return false;
-      const warrantyExpiration = addMonths(new Date(order.completedAt), order.warrantyPeriodMonths);
+      const warrantyExpiration = getWarrantyExpirationDate(order);
+      if (!warrantyExpiration) return false;
       return warrantyExpiration < now;
     })
     .map(order => {
-      const deliveredAt = new Date(order.completedAt!);
-      const warrantyExpiredAt = addMonths(deliveredAt, order.warrantyPeriodMonths!);
+      const deliveredAt = getWarrantyStartDate(order)!;
+      const warrantyExpiredAt = getWarrantyExpirationDate(order)!;
       const daysExpired = differenceInDays(now, warrantyExpiredAt);
       
       return {
@@ -357,14 +354,14 @@ function findExpiredOrders(orders: RepairOrder[], now: Date) {
 function findExpiringSoonOrders(orders: RepairOrder[], now: Date) {
   return orders
     .filter(order => {
-      if (!order.completedAt || !order.warrantyPeriodMonths) return false;
-      const warrantyExpiration = addMonths(new Date(order.completedAt), order.warrantyPeriodMonths);
+      const warrantyExpiration = getWarrantyExpirationDate(order);
+      if (!warrantyExpiration) return false;
       const daysRemaining = differenceInDays(warrantyExpiration, now);
       return daysRemaining > 0 && daysRemaining <= 30;
     })
     .map(order => {
-      const deliveredAt = new Date(order.completedAt!);
-      const warrantyExpiresAt = addMonths(deliveredAt, order.warrantyPeriodMonths!);
+      const deliveredAt = getWarrantyStartDate(order)!;
+      const warrantyExpiresAt = getWarrantyExpirationDate(order)!;
       const daysRemaining = differenceInDays(warrantyExpiresAt, now);
       
       return {

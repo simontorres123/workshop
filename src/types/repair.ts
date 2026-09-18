@@ -38,6 +38,7 @@ export interface RepairOrder {
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
+  clientDeviceId?: string;
   branchId?: string;
   
   // Información del aparato
@@ -137,6 +138,8 @@ export interface CreateRepairOrderRequest {
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
+  clientDeviceId?: string;
+  saveDeviceForClient?: boolean;
   organizationId?: string;
   branchId?: string;
   

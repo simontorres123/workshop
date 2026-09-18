@@ -1,5 +1,6 @@
-import { addMonths, differenceInDays, isAfter, isBefore } from 'date-fns';
-import { RepairOrder, RepairStatus } from '@/types/repair';
+import { differenceInDays, isAfter } from 'date-fns';
+import { RepairOrder } from '@/types/repair';
+import { getStorageExpirationDate, getWarrantyExpirationDate, getWarrantyStartDate } from './repairLifecycle';
 
 export interface WarrantyAlert {
   id: string;
@@ -34,25 +35,15 @@ export function calculateExpirationAlerts(
   const warrantyAlerts: WarrantyAlert[] = [];
   const storageAlerts: WarrantyAlert[] = [];
 
-  // Filtrar solo órdenes que están entregadas (tienen deliveredAt)
-  const deliveredOrders = orders.filter(order => 
-    order.deliveredAt && 
-    order.status === RepairStatus.DELIVERED
-  );
-
-  for (const order of deliveredOrders) {
-    if (!order.deliveredAt) continue;
-
-    const deliveryDate = new Date(order.deliveredAt);
-    const warrantyPeriod = order.warrantyPeriodMonths || 3; // Default 3 meses
-    const storagePeriod = order.storagePeriodMonths || 1; // Default 1 mes
+  // Cada tipo de alerta usa su propio inicio: entrega para garantía y reparación lista para almacenamiento.
+  for (const order of orders) {
 
     // Calcular fechas de vencimiento
-    const warrantyExpirationDate = addMonths(deliveryDate, warrantyPeriod);
-    const storageExpirationDate = addMonths(deliveryDate, storagePeriod);
+    const warrantyExpirationDate = getWarrantyExpirationDate(order);
+    const storageExpirationDate = getStorageExpirationDate(order);
 
     // Verificar alerta de garantía
-    if (isAfter(warrantyExpirationDate, today)) {
+    if (warrantyExpirationDate && isAfter(warrantyExpirationDate, today)) {
       const daysToWarrantyExpiration = differenceInDays(warrantyExpirationDate, today);
       
       if (daysToWarrantyExpiration <= warningDays) {
@@ -73,7 +64,7 @@ export function calculateExpirationAlerts(
     }
 
     // Verificar alerta de almacenamiento
-    if (isAfter(storageExpirationDate, today)) {
+    if (storageExpirationDate && isAfter(storageExpirationDate, today)) {
       const daysToStorageExpiration = differenceInDays(storageExpirationDate, today);
       
       if (daysToStorageExpiration <= warningDays) {
@@ -91,6 +82,19 @@ export function calculateExpirationAlerts(
           message: `El almacenamiento de ${order.deviceType} (${order.folio}) vence en ${daysToStorageExpiration} días`
         });
       }
+    } else if (storageExpirationDate) {
+      const daysOverdue = differenceInDays(today, storageExpirationDate);
+      storageAlerts.push({
+        id: order.id,
+        folio: order.folio,
+        type: 'storage',
+        severity: 'critical',
+        daysRemaining: -daysOverdue,
+        expirationDate: storageExpirationDate,
+        clientName: order.clientName,
+        deviceType: order.deviceType,
+        message: `El almacenamiento de ${order.deviceType} (${order.folio}) venció hace ${daysOverdue} días`
+      });
     }
   }
 
@@ -127,7 +131,10 @@ export function checkOrderAlerts(
   warrantyExpirationDate?: Date;
   storageExpirationDate?: Date;
 } {
-  if (!order.deliveredAt || order.status !== RepairStatus.DELIVERED) {
+  const warrantyExpirationDate = getWarrantyExpirationDate(order);
+  const storageExpirationDate = getStorageExpirationDate(order);
+
+  if (!warrantyExpirationDate && !storageExpirationDate) {
     return {
       hasWarrantyAlert: false,
       hasStorageAlert: false
@@ -135,23 +142,16 @@ export function checkOrderAlerts(
   }
 
   const today = new Date();
-  const deliveryDate = new Date(order.deliveredAt);
-  const warrantyPeriod = order.warrantyPeriodMonths || 3;
-  const storagePeriod = order.storagePeriodMonths || 1;
-
-  const warrantyExpirationDate = addMonths(deliveryDate, warrantyPeriod);
-  const storageExpirationDate = addMonths(deliveryDate, storagePeriod);
-
-  const warrantyDaysRemaining = differenceInDays(warrantyExpirationDate, today);
-  const storageDaysRemaining = differenceInDays(storageExpirationDate, today);
+  const warrantyDaysRemaining = warrantyExpirationDate ? differenceInDays(warrantyExpirationDate, today) : undefined;
+  const storageDaysRemaining = storageExpirationDate ? differenceInDays(storageExpirationDate, today) : undefined;
 
   return {
-    hasWarrantyAlert: warrantyDaysRemaining <= warningDays && warrantyDaysRemaining > 0,
-    hasStorageAlert: storageDaysRemaining <= warningDays && storageDaysRemaining > 0,
-    warrantyDaysRemaining: warrantyDaysRemaining > 0 ? warrantyDaysRemaining : undefined,
-    storageDaysRemaining: storageDaysRemaining > 0 ? storageDaysRemaining : undefined,
-    warrantyExpirationDate,
-    storageExpirationDate
+    hasWarrantyAlert: warrantyDaysRemaining !== undefined && warrantyDaysRemaining <= warningDays && warrantyDaysRemaining > 0,
+    hasStorageAlert: storageDaysRemaining !== undefined && storageDaysRemaining <= warningDays && storageDaysRemaining > 0,
+    warrantyDaysRemaining: warrantyDaysRemaining && warrantyDaysRemaining > 0 ? warrantyDaysRemaining : undefined,
+    storageDaysRemaining: storageDaysRemaining && storageDaysRemaining > 0 ? storageDaysRemaining : undefined,
+    warrantyExpirationDate: warrantyExpirationDate || undefined,
+    storageExpirationDate: storageExpirationDate || undefined
   };
 }
 

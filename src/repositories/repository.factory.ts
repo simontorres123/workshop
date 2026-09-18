@@ -4,13 +4,14 @@ import { SupabaseInventoryRepository } from './supabase-inventory.repository';
 import { SupabaseSalesRepository } from './supabase-sales.repository';
 import { SupabaseOrganizationRepository } from './supabase-organization.repository';
 import { SupabaseBranchRepository } from './supabase-branch.repository';
+import { SupabaseDeviceRepository } from './supabase-device.repository';
 
 /**
  * RepositoryFactory centraliza el acceso a todos los repositorios de Supabase.
  */
 export const RepositoryFactory = {
-  getClients: () => {
-    return new SupabaseClientRepository();
+  getClients: (context?: { organizationId: string }) => {
+    return new SupabaseClientRepository(context);
   },
   
   getRepairOrders: (context?: TenantContext) => {
@@ -31,5 +32,7 @@ export const RepositoryFactory = {
 
   getBranches: () => {
     return new SupabaseBranchRepository();
-  }
+  },
+
+  getDevices: () => new SupabaseDeviceRepository()
 };

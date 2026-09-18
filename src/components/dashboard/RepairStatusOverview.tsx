@@ -168,7 +168,14 @@ export default function RepairStatusOverview({
 
   if (loading) {
     return (
-      <Card>
+      <Card
+        sx={compact ? {
+          boxShadow: 'none',
+          border: 0,
+          bgcolor: 'transparent',
+          '& .MuiCardContent-root': { px: 0, pt: 0 }
+        } : undefined}
+      >
         {showTitle && (
           <CardHeader
             avatar={<Icon icon="eva:pie-chart-outline" width={24} />}
@@ -224,7 +231,7 @@ export default function RepairStatusOverview({
         <CardContent>
           {/* Estadísticas Principales */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={6} md={3}>
+            <Grid item xs={6} md={compact ? 6 : 3} xl={compact ? 3 : undefined}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                 <Typography variant="h4" fontWeight="bold" color="primary">
                   {getTotalOrders()}
@@ -234,7 +241,7 @@ export default function RepairStatusOverview({
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={3}>
+            <Grid item xs={6} md={compact ? 6 : 3} xl={compact ? 3 : undefined}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                 <Typography variant="h4" fontWeight="bold" color="warning.main">
                   {getUrgentOrders()}
@@ -244,7 +251,7 @@ export default function RepairStatusOverview({
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={3}>
+            <Grid item xs={6} md={compact ? 6 : 3} xl={compact ? 3 : undefined}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                 <Typography variant="h4" fontWeight="bold" color="success.main">
                   {statusData.find(s => s.status === RepairStatus.REPAIRED)?.count || 0}
@@ -254,7 +261,7 @@ export default function RepairStatusOverview({
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={3}>
+            <Grid item xs={6} md={compact ? 6 : 3} xl={compact ? 3 : undefined}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                 <Typography variant="h4" fontWeight="bold" color="success.main">
                   {statusData.find(s => s.status === RepairStatus.DELIVERED)?.count || 0}
@@ -267,31 +274,44 @@ export default function RepairStatusOverview({
           </Grid>
 
           {/* Lista de Estados */}
-          <Box>
+          <Box sx={compact ? {
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+            gap: 1.5
+          } : undefined}>
             {statusData.map((statusItem) => (
-              <Box key={statusItem.status} sx={{ mb: 2 }}>
+              <Box key={statusItem.status} sx={{ mb: compact ? 0 : 2, minWidth: 0 }}>
                 <Box 
                   sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                    display: 'flex',
+                    flexDirection: compact ? 'column' : 'row',
+                    alignItems: compact ? 'stretch' : 'center',
                     justifyContent: 'space-between',
+                    gap: compact ? 1 : 0,
                     mb: 1,
                     cursor: 'pointer',
-                    p: 1,
-                    borderRadius: 1,
+                    p: compact ? 1.25 : 1,
+                    borderRadius: compact ? 1.5 : 1,
+                    border: compact ? '1px solid' : 0,
+                    borderColor: compact ? 'divider' : undefined,
+                    bgcolor: compact ? 'background.paper' : undefined,
                     '&:hover': {
                       bgcolor: 'action.hover'
                     }
                   }}
                   onClick={() => handleStatusClick(statusItem)}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                     <Icon 
                       icon={statusItem.config.icon} 
                       width={20} 
                       color={`${statusItem.config.color}.main`}
                     />
-                    <Typography variant="subtitle2" fontWeight="bold">
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight="bold"
+                      sx={{ minWidth: 0, flex: 1, lineHeight: 1.25, overflowWrap: 'anywhere' }}
+                    >
                       {statusItem.config.label}
                     </Typography>
                     <Chip
@@ -302,7 +322,7 @@ export default function RepairStatusOverview({
                     />
                   </Box>
                   
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: compact ? 'flex-end' : 'initial', gap: 1 }}>
                     <Typography variant="body2" color="text.secondary">
                       {getProgressPercentage(statusItem.count).toFixed(1)}%
                     </Typography>

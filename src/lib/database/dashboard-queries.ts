@@ -2,6 +2,7 @@ import { RepairOrder, RepairStatus, WarrantyClaim } from '@/types/repair';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { addMonths, differenceInDays } from 'date-fns';
 import { TenantContext } from '@/repositories/supabase-repair-order.repository';
+import { getStorageExpirationDate, getWarrantyStartDate } from '@/utils/repairLifecycle';
 
 // Detectar si estamos en el cliente o servidor
 const isClient = typeof window !== 'undefined';
@@ -95,7 +96,7 @@ export async function getUrgentRepairOrders(ctx: TenantContext, filters: Dashboa
 /**
  * Estadísticas de garantía para el dashboard
  */
-export async function getWarrantyStats(ctx: TenantContext) {
+export async function getWarrantyStats(ctx: TenantContext, filters: DashboardFilters = {}) {
   throwIfClient('getWarrantyStats');
 
   try {
@@ -103,12 +104,14 @@ export async function getWarrantyStats(ctx: TenantContext) {
     const allOrders = await repairOrderRepository.findAll();
     
     let filteredOrders = allOrders;
-    if (filters?.branchId) {
+    if (filters.branchId) {
       filteredOrders = filteredOrders.filter(o => o.branchId === filters.branchId);
     }
 
     // Filtrar órdenes que tienen o tuvieron garantía
-    const warrantyOrders = filteredOrders.filter(o => (o.warrantyClaims && o.warrantyClaims.length > 0) || o.status === 'completed');
+    const warrantyOrders = filteredOrders.filter(o =>
+      Boolean(getWarrantyStartDate(o) && o.warrantyPeriodMonths) || Boolean(o.warrantyClaims?.length)
+    );
     
     const totalOrders = filteredOrders.length;
     const totalClaims = filteredOrders.reduce((sum, o) => sum + (o.warrantyClaims?.length || 0), 0);
@@ -121,7 +124,7 @@ export async function getWarrantyStats(ctx: TenantContext) {
       warrantyOrders: warrantyOrders.length,
       totalClaims,
       pendingClaims,
-      claimRate: allOrders.length > 0 ? (totalClaims / allOrders.length) * 100 : 0
+      claimRate: filteredOrders.length > 0 ? (totalClaims / filteredOrders.length) * 100 : 0
     };
   } catch (error) {
     console.error('Error getting warranty stats:', error);
@@ -143,12 +146,8 @@ export async function getExpiringStorageOrders(ctx: TenantContext, filters: Dash
     // Almacenamiento gratuito por defecto: 1 mes después de terminada la reparación
     return allOrders.filter(order => {
       if (filters.branchId && order.branchId !== filters.branchId) return false;
-      if (order.status !== 'repaired') return false;
-      if (!order.completedAt) return false;
-
-      const completedDate = new Date(order.completedAt);
-      const storageMonths = order.storagePeriodMonths || 1;
-      const expirationDate = addMonths(completedDate, storageMonths);
+      const expirationDate = getStorageExpirationDate(order);
+      if (!expirationDate) return false;
       
       // Consideramos "próximo a vencer" si faltan 7 días o menos, o ya venció
       const daysToExpiration = differenceInDays(expirationDate, now);
@@ -181,7 +180,7 @@ export async function getExpiringStorageOrders(ctx: TenantContext, filters: Dash
     });
 
     const totalOrders = filteredOrders.length;
-    const ordersWithWarranty = filteredOrders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+    const ordersWithWarranty = filteredOrders.filter(o => Boolean(getWarrantyStartDate(o) && o.warrantyPeriodMonths)).length;
     
     // Obtener todos los reclamos de las órdenes filtradas
     const allClaims: WarrantyClaim[] = filteredOrders.flatMap(o => {

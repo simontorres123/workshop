@@ -101,6 +101,7 @@ export class SupabaseRepairOrderRepository {
           client_name: data.clientName,
           client_phone: data.clientPhone,
           client_email: data.clientEmail,
+          client_device_id: data.clientDeviceId || null,
           device_type: data.deviceType,
           device_brand: data.deviceBrand,
           device_model: data.deviceModel,
@@ -383,9 +384,26 @@ export class SupabaseRepairOrderRepository {
       const current = await this.findById(id);
       const previousStatus = current?.status || null;
 
+      const lifecycleNow = new Date().toISOString();
+      const statusUpdate: Record<string, string> = { status };
+
+      // Registrar las fechas base del ciclo de vida. Estas fechas alimentan
+      // las alertas y reportes de garantía y almacenamiento del dashboard.
+      if (status === 'repaired' && !current?.completedAt) {
+        statusUpdate.completed_at = lifecycleNow;
+      }
+      if (status === 'delivered') {
+        if (!current?.deliveredAt) statusUpdate.delivered_at = lifecycleNow;
+        if (!current?.completedAt) statusUpdate.completed_at = lifecycleNow;
+      }
+      if (status === 'completed' && !current?.deliveredAt) {
+        statusUpdate.delivered_at = lifecycleNow;
+        if (!current?.completedAt) statusUpdate.completed_at = lifecycleNow;
+      }
+
       let query = supabase
         .from('repair_orders')
-        .update({ status } as any)
+        .update(statusUpdate as any)
         .eq('id', id)
         .eq('organization_id', ctx.organizationId);
 
@@ -460,6 +478,7 @@ export class SupabaseRepairOrderRepository {
       trackingUrl: db.tracking_url || undefined,
       branchId: db.branch_id || undefined,
       clientId: db.client_id || undefined,
+      clientDeviceId: (db as any).client_device_id || undefined,
       clientName: db.client_name,
       clientPhone: db.client_phone,
       clientEmail: db.client_email || undefined,
