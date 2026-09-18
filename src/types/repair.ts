@@ -33,6 +33,7 @@ export interface RepairOrder {
   id: string;
   type: 'repair_order';
   folio: string; // Folio único generado automáticamente
+  trackingUrl?: string; // URL pública guardada para consultar el estatus
   clientId?: string;
   clientName: string;
   clientPhone: string;
@@ -159,9 +160,11 @@ export interface CreateRepairOrderRequest {
   // Garantía y almacenamiento
   warrantyPeriodMonths?: number;
   storagePeriodMonths?: number;
+  trackingUrl?: string;
 }
 
 export interface UpdateRepairOrderRequest {
+  trackingUrl?: string;
   clientName?: string;
   clientPhone?: string;
   clientEmail?: string;

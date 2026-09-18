@@ -128,7 +128,7 @@ export class SupabaseRepairOrderRepository {
       return await this.findById(newOrder.id);
     } catch (error) {
       console.error('Error creating repair order in Supabase:', error);
-      return null;
+      throw error;
     }
   }
 
@@ -238,6 +238,7 @@ export class SupabaseRepairOrderRepository {
       if (updates.totalCost !== undefined) dbUpdates.total_cost = updates.totalCost;
       if (updates.confirmedDiagnosis) dbUpdates.confirmed_diagnosis = updates.confirmedDiagnosis;
       if (updates.images !== undefined) dbUpdates.images = updates.images;
+      if (updates.trackingUrl !== undefined) (dbUpdates as any).tracking_url = updates.trackingUrl;
 
       if (Object.keys(dbUpdates).length > 0) {
         let query = supabase
@@ -456,6 +457,7 @@ export class SupabaseRepairOrderRepository {
       id: db.id,
       type: 'repair_order',
       folio: db.folio,
+      trackingUrl: db.tracking_url || undefined,
       branchId: db.branch_id || undefined,
       clientId: db.client_id || undefined,
       clientName: db.client_name,

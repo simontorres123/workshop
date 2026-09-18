@@ -35,6 +35,7 @@ import { useRepairOrders } from '@/hooks/useRepairOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import RepairReceiptDialog from '@/components/repairs/RepairReceiptDialog';
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
@@ -91,6 +92,8 @@ export default function RepairsPage() {
   const [openDetails, setOpenDetails] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openReceipt, setOpenReceipt] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState<RepairOrder | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -130,11 +133,15 @@ export default function RepairsPage() {
     setSelectedOrder(null);
   };
 
-  const handleSaveOrder = async (orderData: any) => {
+  const handleSaveOrder = async (savedOrder: RepairOrder) => {
     try {
-      // Saving order
+      const shouldOpenReceipt = !selectedOrder;
       handleCloseForm();
       await fetchOrders();
+      if (shouldOpenReceipt) {
+        setReceiptOrder(savedOrder);
+        setOpenReceipt(true);
+      }
     } catch (error) {
       console.error('Error al guardar orden:', error);
     }
@@ -759,6 +766,19 @@ export default function RepairsPage() {
             updateOrderInList(updatedOrder);
             // Actualizar la orden seleccionada también
             setSelectedOrder(updatedOrder);
+          }}
+          onPrintReceipt={(order) => {
+            setReceiptOrder(order);
+            setOpenReceipt(true);
+          }}
+        />
+
+        <RepairReceiptDialog
+          order={receiptOrder}
+          open={openReceipt}
+          onClose={() => {
+            setOpenReceipt(false);
+            setReceiptOrder(null);
           }}
         />
 

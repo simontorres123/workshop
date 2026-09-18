@@ -27,7 +27,7 @@ import { ImageMetadata } from '@/types';
 
 interface RepairOrderFormProps {
   order?: RepairOrder | null;
-  onSave: (data: CreateRepairOrderRequest) => void;
+  onSave: (order: RepairOrder) => void;
   onCancel: () => void;
   loading?: boolean;
 }
@@ -77,7 +77,7 @@ export default function RepairOrderForm({
   onCancel, 
   loading = false 
 }: RepairOrderFormProps) {
-  const { createOrder, updateOrder } = useRepairOrders();
+  const { createOrder, updateOrder, clearError } = useRepairOrders();
   const { activeBranchId } = useAuthStore();
   const [formData, setFormData] = useState<CreateRepairOrderRequest>({
     clientName: order?.clientName || '',
@@ -211,12 +211,30 @@ export default function RepairOrderForm({
         images: allImageUrls
       };
 
-      if (order) {
-        await updateOrder(order.id, orderData);
+      const savedOrder = order
+        ? await updateOrder(order.id, orderData)
+        : await createOrder({
+            ...orderData,
+            // El folio lo genera el servidor; la URL se completa después de recibirlo.
+            // Se conserva en la orden para que futuras reimpresiones usen el mismo host.
+            trackingUrl: undefined,
+          });
+
+      if (!order && savedOrder?.folio && typeof window !== 'undefined') {
+        const trackingUrl = `${window.location.origin}/track/${encodeURIComponent(savedOrder.folio)}`;
+        try {
+          // La migración de tracking_url puede aplicarse después del despliegue.
+          // La orden ya está creada, por lo que no debemos bloquear el flujo si aún no existe.
+          const persistedOrder = await updateOrder(savedOrder.id, { trackingUrl });
+          onSave(persistedOrder);
+        } catch (trackingError) {
+          console.warn('No se pudo guardar la URL de seguimiento; se usará la URL actual al reimprimir.', trackingError);
+          clearError();
+          onSave({ ...savedOrder, trackingUrl });
+        }
       } else {
-        await createOrder(orderData);
+        onSave(savedOrder);
       }
-      onSave(orderData);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Error al guardar la orden';
       console.error('Error saving repair order:', error);

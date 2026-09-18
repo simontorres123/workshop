@@ -61,13 +61,15 @@ interface RepairOrderDetailsProps {
   open: boolean;
   onClose: () => void;
   onOrderUpdate?: (updatedOrder: RepairOrder) => void;
+  onPrintReceipt?: (order: RepairOrder) => void;
 }
 
 export default function RepairOrderDetails({ 
   order, 
   open, 
   onClose,
-  onOrderUpdate 
+  onOrderUpdate,
+  onPrintReceipt,
 }: RepairOrderDetailsProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -587,6 +589,14 @@ export default function RepairOrderDetails({
       <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper', position: 'sticky', bottom: 0, zIndex: 1 }}>
         <Button onClick={onClose} variant="outlined">
           Cerrar
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<Icon icon="eva:printer-outline" />}
+          onClick={() => onPrintReceipt?.(order)}
+        >
+          Imprimir comprobante
         </Button>
         <Button 
           variant="contained"
