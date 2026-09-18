@@ -591,7 +591,19 @@ export default function RepairOrderForm({
         </Card>
 
         {/* Botones de Acción */}
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+        <Box sx={{
+          display: 'flex',
+          gap: { xs: 1.25, sm: 2 },
+          justifyContent: 'flex-end',
+          flexDirection: { xs: 'column-reverse', sm: 'row' },
+          pt: { xs: 1.5, sm: 1 },
+          pb: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 20px)', sm: 1 },
+          mb: { xs: 1, sm: 0 },
+          '& .MuiButtonBase-root': {
+            minHeight: { xs: 48, sm: 40 },
+            width: { xs: '100%', sm: 'auto' },
+          },
+        }}>
           <Button 
             variant="outlined" 
             onClick={onCancel}
