@@ -87,6 +87,7 @@ export default function RepairsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+  const [visibleViewportHeight, setVisibleViewportHeight] = useState<number | null>(null);
   
   const [openForm, setOpenForm] = useState(false);
   const [openDetails, setOpenDetails] = useState(false);
@@ -102,6 +103,31 @@ export default function RepairsPage() {
 
   const { organizationId } = useAuth();
   const { orders, loading, error, fetchOrders, deleteOrder, updateOrderStatus, updateOrderInList, clearError } = useRepairOrders();
+
+  // Safari/iOS cambia visualViewport al mostrar u ocultar la barra inferior.
+  // Usamos esa altura real para que el modal no quede debajo del navegador.
+  useEffect(() => {
+    if (!isMobile || typeof window === 'undefined') {
+      setVisibleViewportHeight(null);
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const updateViewportHeight = () => {
+      setVisibleViewportHeight(Math.round(viewport?.height || window.innerHeight));
+    };
+
+    updateViewportHeight();
+    viewport?.addEventListener('resize', updateViewportHeight);
+    viewport?.addEventListener('scroll', updateViewportHeight);
+    window.addEventListener('resize', updateViewportHeight);
+
+    return () => {
+      viewport?.removeEventListener('resize', updateViewportHeight);
+      viewport?.removeEventListener('scroll', updateViewportHeight);
+      window.removeEventListener('resize', updateViewportHeight);
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     fetchOrders();
@@ -687,9 +713,9 @@ export default function RepairsPage() {
               onClick={handleCreateOrder}
               size={isMobile ? "medium" : "large"}
               disabled={!organizationId}
-              sx={{
+                sx={{
                 position: 'fixed',
-                bottom: isMobile ? 16 : 24,
+                bottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 24,
                 right: isMobile ? 16 : 24,
                 zIndex: theme.zIndex.speedDial,
                 ...( !organizationId && {
@@ -713,8 +739,9 @@ export default function RepairsPage() {
           PaperProps={{
             sx: { 
               borderRadius: isMobile ? 0 : 2,
-              maxHeight: isMobile ? '100vh' : '92vh',
-              minHeight: isMobile ? '100vh' : undefined,
+              height: isMobile ? (visibleViewportHeight ? `${visibleViewportHeight}px` : '100dvh') : undefined,
+              maxHeight: isMobile ? (visibleViewportHeight ? `${visibleViewportHeight}px` : '100dvh') : '92vh',
+              minHeight: isMobile ? (visibleViewportHeight ? `${visibleViewportHeight}px` : '100dvh') : undefined,
               m: isMobile ? 0 : 1
             }
           }}
@@ -743,7 +770,7 @@ export default function RepairsPage() {
               </IconButton>
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: 'background.default' }}>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, pt: 2, pb: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 24px)', sm: 2 }, bgcolor: 'background.default' }}>
             <RepairOrderForm
               order={selectedOrder}
               onSave={handleSaveOrder}
