@@ -6,6 +6,7 @@ import {
   CardContent,
   Chip,
   Button,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -41,6 +42,7 @@ import DigitalSignatureComponent from '@/components/ui/DigitalSignature';
 interface WarrantyClaimHistoryProps {
   claims: WarrantyClaim[];
   onAddClaim?: (claim: Omit<WarrantyClaim, 'id' | 'date'>) => void;
+  onUpdateClaim?: (claimId: string, claim: Partial<WarrantyClaim>) => void;
   readonly?: boolean;
   loading?: boolean;
 }
@@ -48,11 +50,13 @@ interface WarrantyClaimHistoryProps {
 export default function WarrantyClaimHistory({ 
   claims = [], 
   onAddClaim,
+  onUpdateClaim,
   readonly = false,
   loading = false 
 }: WarrantyClaimHistoryProps) {
   const [openDialog, setOpenDialog] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [editClaimId, setEditClaimId] = useState<string | null>(null);
   const [newClaim, setNewClaim] = useState({
     reason: '',
     technician: '',
@@ -65,7 +69,17 @@ export default function WarrantyClaimHistory({
   const [supervisorSignature, setSupervisorSignature] = useState<DigitalSignature | null>(null);
 
   const handleSubmit = () => {
-    if (newClaim.reason.trim() && newClaim.technician.trim() && onAddClaim) {
+    if (editClaimId && onUpdateClaim) {
+      // Editar reclamo existente
+      onUpdateClaim(editClaimId, {
+        notes: newClaim.notes.trim() || undefined,
+        resolution: newClaim.resolution.trim() || undefined,
+        status: newClaim.status,
+      });
+      resetForm();
+      setOpenDialog(false);
+    } else if (newClaim.reason.trim() && newClaim.technician.trim() && onAddClaim) {
+      // Crear nuevo reclamo
       onAddClaim({
         reason: newClaim.reason.trim(),
         technician: newClaim.technician.trim(),
@@ -76,24 +90,29 @@ export default function WarrantyClaimHistory({
         technicianSignature: technicianSignature || undefined,
         supervisorSignature: supervisorSignature || undefined
       });
-      
-      // Reset form
-      setNewClaim({ 
-        reason: '', 
-        technician: '', 
-        notes: '', 
-        resolution: '', 
-        status: 'pending' 
-      });
-      setClientSignature(null);
-      setTechnicianSignature(null);
-      setSupervisorSignature(null);
-      setActiveTab(0);
+      resetForm();
       setOpenDialog(false);
     }
   };
 
+  const handleEditClick = (claim: WarrantyClaim) => {
+    setEditClaimId(claim.id);
+    setNewClaim({
+      reason: claim.reason,
+      technician: claim.technician,
+      notes: claim.notes || '',
+      resolution: claim.resolution || '',
+      status: claim.status
+    });
+    setClientSignature(claim.clientSignature || null);
+    setTechnicianSignature(claim.technicianSignature || null);
+    setSupervisorSignature(claim.supervisorSignature || null);
+    setActiveTab(0);
+    setOpenDialog(true);
+  };
+
   const resetForm = () => {
+    setEditClaimId(null);
     setNewClaim({ 
       reason: '', 
       technician: '', 
@@ -213,12 +232,24 @@ export default function WarrantyClaimHistory({
                         <Typography variant="subtitle2" fontWeight="bold" color="warning.dark">
                           {claim.reason}
                         </Typography>
-                        <Chip 
-                          label={format(new Date(claim.date), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
-                          size="small"
-                          variant="outlined"
-                          color="warning"
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {!readonly && onUpdateClaim && (
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleEditClick(claim)}
+                              disabled={loading}
+                              sx={{ color: 'warning.main' }}
+                            >
+                              <Icon icon="eva:edit-2-outline" width={18} />
+                            </IconButton>
+                          )}
+                          <Chip 
+                            label={format(new Date(claim.date), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                          />
+                        </Box>
                       </Box>
                       
                       {/* Técnico */}
@@ -342,7 +373,7 @@ export default function WarrantyClaimHistory({
           color: 'warning.dark'
         }}>
           <Icon icon="eva:shield-outline" width={24} />
-          Registrar Reclamo de Garantía
+          {editClaimId ? 'Actualizar Reclamo de Garantía' : 'Registrar Reclamo de Garantía'}
         </DialogTitle>
         
         <DialogContent sx={{ pt: 2 }}>
@@ -362,6 +393,7 @@ export default function WarrantyClaimHistory({
                 placeholder="Ej: Falla en el compresor"
                 sx={{ mb: 2 }}
                 required
+                disabled={!!editClaimId}
               />
               
               <TextField
@@ -372,6 +404,7 @@ export default function WarrantyClaimHistory({
                 placeholder="Ej: Luis Pérez"
                 sx={{ mb: 2 }}
                 required
+                disabled={!!editClaimId}
               />
 
               <FormControl fullWidth sx={{ mb: 2 }}>
@@ -479,10 +512,10 @@ export default function WarrantyClaimHistory({
             variant="contained"
             color="warning"
             onClick={handleSubmit}
-            disabled={!newClaim.reason.trim() || !newClaim.technician.trim() || loading}
+            disabled={( !editClaimId && (!newClaim.reason.trim() || !newClaim.technician.trim()) ) || loading}
             startIcon={loading ? <Icon icon="eva:loader-outline" /> : <Icon icon="eva:save-outline" />}
           >
-            {loading ? 'Guardando...' : 'Registrar Reclamo'}
+            {loading ? 'Guardando...' : (editClaimId ? 'Actualizar Reclamo' : 'Registrar Reclamo')}
           </Button>
         </DialogActions>
       </Dialog>

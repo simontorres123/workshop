@@ -40,7 +40,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (profile) {
       const role = profile.role;
       if (role === 'technician' || role === 'branch_admin') {
-        initialBranchId = profile.branch_id || null;
+        initialBranchId = profile.assignedBranches && profile.assignedBranches.length > 0 
+          ? profile.assignedBranches[0] 
+          : (profile.branch_id || null);
       }
     }
     

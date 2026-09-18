@@ -11,41 +11,81 @@ export const userService = {
   getOrganizationUsers: async (organizationId: string) => {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*, branches(name)')
+      .select('*, user_branches(branch_id, branches(name))')
       .eq('organization_id', organizationId)
       .order('full_name');
 
     if (error) throw error;
-    return data;
+    
+    // Mapear para mantener compatibilidad parcial con la interfaz anterior si es posible
+    return data.map(user => {
+      const uBranches = user.user_branches || [];
+      const branchesList = uBranches.map((ub: any) => ({
+        id: ub.branch_id,
+        name: ub.branches?.name
+      }));
+      return {
+        ...user,
+        assignedBranches: branchesList.map((b: any) => b.id),
+        branches: branchesList.length > 0 ? branchesList[0] : null,
+        branch_id: branchesList.length > 0 ? branchesList[0].id : null,
+        all_branches: branchesList
+      };
+    });
   },
 
   /**
    * Obtener usuarios de una sucursal específica
    */
   getBranchUsers: async (branchId: string) => {
+    // Para buscar por sucursal, primero buscamos en user_branches
+    const { data: userIdsData, error: ubError } = await supabase
+      .from('user_branches')
+      .select('user_id')
+      .eq('branch_id', branchId);
+      
+    if (ubError) throw ubError;
+    const userIds = userIdsData.map(ub => ub.user_id);
+    
+    if (userIds.length === 0) return [];
+
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*, branches(name)')
-      .eq('branch_id', branchId)
+      .select('*, user_branches(branch_id, branches(name))')
+      .in('id', userIds)
       .order('full_name');
 
     if (error) throw error;
-    return data;
+    
+    return data.map(user => {
+      const uBranches = user.user_branches || [];
+      const branchesList = uBranches.map((ub: any) => ({
+        id: ub.branch_id,
+        name: ub.branches?.name
+      }));
+      return {
+        ...user,
+        assignedBranches: branchesList.map((b: any) => b.id),
+        branches: branchesList.length > 0 ? branchesList[0] : null,
+        branch_id: branchesList.length > 0 ? branchesList[0].id : null,
+        all_branches: branchesList
+      };
+    });
   },
 
   /**
    * Actualizar el rol o sucursal de un usuario
    */
   updateUser: async (userId: string, updates: Partial<UserProfile>) => {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single();
+    const response = await fetch(`/api/system/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
 
-    if (error) throw error;
-    return data;
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    return result.data;
   },
 
   /**
@@ -74,11 +114,11 @@ export const userService = {
    * Eliminar un perfil (Nota: Esto no elimina el usuario de Auth por seguridad, solo el perfil)
    */
   deleteProfile: async (userId: string) => {
-    const { error } = await supabase
-      .from('user_profiles')
-      .delete()
-      .eq('id', userId);
+    const response = await fetch(`/api/system/users/${userId}`, {
+      method: 'DELETE',
+    });
 
-    if (error) throw error;
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
   }
 };

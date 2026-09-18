@@ -17,13 +17,21 @@ const supabaseAdmin = createClient<Database>(
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, fullName, role, organizationId, branchId } = body;
+    const { email, password, fullName, role, organizationId, branchId, branchIds } = body;
 
     if (!email || !password || !fullName || !role || !organizationId) {
       return NextResponse.json(
         { success: false, error: 'Faltan campos obligatorios' },
         { status: 400 }
       );
+    }
+
+    // Determine the branches to assign
+    let branchesToAssign: string[] = [];
+    if (branchIds && Array.isArray(branchIds)) {
+      branchesToAssign = branchIds;
+    } else if (branchId) {
+      branchesToAssign = [branchId];
     }
 
     // 1. Crear el usuario en Supabase Auth (sin confirmación de email para flujo rápido)
@@ -41,13 +49,12 @@ export async function POST(request: Request) {
 
     const userId = authData.user.id;
 
-    // 2. Crear el perfil del usuario vinculado a la organización y sucursal
+    // 2. Crear el perfil del usuario vinculado a la organización
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
         id: userId,
         organization_id: organizationId,
-        branch_id: branchId || null,
         role: role,
         full_name: fullName
       });
@@ -57,6 +64,23 @@ export async function POST(request: Request) {
       // Limpieza: si falla el perfil, intentamos borrar el usuario de auth
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ success: false, error: profileError.message }, { status: 400 });
+    }
+
+    // 3. Insertar sucursales asignadas en user_branches
+    if (branchesToAssign.length > 0) {
+      const branchInserts = branchesToAssign.map(bId => ({
+        user_id: userId,
+        branch_id: bId
+      }));
+
+      const { error: branchesError } = await supabaseAdmin
+        .from('user_branches')
+        .insert(branchInserts);
+
+      if (branchesError) {
+        console.error('User Branches Error:', branchesError);
+        // Not rolling back everything, but logging the error
+      }
     }
 
     return NextResponse.json({ 

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pushNotificationService } from '@/services/push-notification.service';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
-// POST /api/push-notifications/send - Enviar notificación push de prueba
+// POST /api/push-notifications/send - Enviar notificación push de prueba o real
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();
-    const { title, body, icon, data, tag, sound, playSound, silent, ...otherProps } = payload;
+    const { title, body, icon, data, tag, sound, playSound, silent, targetUserId, ...otherProps } = payload;
 
     // Validar datos mínimos requeridos
     if (!title || !body) {
@@ -15,10 +16,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    console.log('📱 Enviando notificación push de prueba:', { title, body });
+    console.log('📱 Solicitud de envío de notificación push:', { title, body, targetUserId });
 
-    // Para notificaciones de prueba, podríamos enviar a todos los dispositivos suscritos
-    // Por ahora, generamos un payload genérico ya que no tenemos suscripciones guardadas
     const timestamp = Date.now();
     const notificationPayload = {
       title,
@@ -26,32 +25,60 @@ export async function POST(request: NextRequest) {
       icon: icon || '/favicon.ico',
       badge: '/favicon.ico',
       data: data || { url: '/dashboard', type: 'test' },
-      tag: tag || `test-notification-${timestamp}`, // Usar tag personalizado o generar uno único
+      tag: tag || `notification-${timestamp}`,
       timestamp,
       requireInteraction: false,
-      sound: sound || '/notification-sound.mp3', // Sonido por defecto
-      playSound: playSound !== false, // Por defecto reproducir sonido
-      silent: silent || false, // Por defecto no silencioso
+      silent: silent || false,
       ...otherProps
     };
 
-    // Para notificaciones de prueba, podemos usar la suscripción activa del cliente
-    // Como no tenemos base de datos de suscripciones aún, vamos a enviar usando
-    // el Service Worker directamente
+    // Identificar al usuario solicitante
+    let token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      token = request.cookies.get('auth_token')?.value;
+    }
     
-    console.log('✅ Notificación de prueba preparada:', notificationPayload);
+    let userId = targetUserId; // Si nos pasan un targetUserId, enviamos a ese usuario
 
-    // Intentar enviar la notificación usando Server-Sent Events o similar
-    // Por ahora, retornamos un payload especial que el cliente puede usar
+    if (!userId && token) {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (user) {
+        userId = user.id; // Fallback: Enviar a sí mismo si no hay target
+      }
+    }
+
+    if (!userId) {
+       return NextResponse.json({
+        success: false,
+        error: 'Usuario no autenticado o targetUserId no proporcionado'
+      }, { status: 401 });
+    }
+
+    // Insertar la notificación en In-App Notifications
+    const { error: insertError } = await supabaseAdmin
+      .from('in_app_notifications')
+      .insert({
+        user_id: userId,
+        title: notificationPayload.title,
+        body: notificationPayload.body,
+        type: notificationPayload.data.type || 'info',
+        link: notificationPayload.data.url
+      });
+
+    if (insertError) {
+      console.error('❌ Error insertando notificación in-app:', insertError);
+      throw insertError;
+    }
+
+    console.log(`✅ Notificación in-app insertada exitosamente para el usuario: ${userId}`);
+
     return NextResponse.json({
       success: true,
-      message: 'Notificación enviada exitosamente',
-      action: 'show_notification', // Instrucción especial para el cliente
-      payload: notificationPayload,
+      message: `Notificación enviada al buzón del usuario`,
       data: {
-        payload: notificationPayload,
-        sentAt: new Date().toISOString(),
-        recipients: 1 // Simulamos que se envía al cliente actual
+        sent: 1,
+        failed: 0,
+        payload: notificationPayload
       }
     });
 

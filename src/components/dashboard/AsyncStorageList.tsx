@@ -11,6 +11,7 @@ import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import { ListSkeleton } from '@/components/ui/SkeletonLoader';
 import { Icon } from '@iconify/react';
+import { useAuthStore } from '@/store/auth.store';
 
 interface StorageItem {
   id: string;
@@ -27,14 +28,23 @@ const AsyncStorageList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { activeBranchId } = useAuthStore();
+
   useEffect(() => {
     const fetchStorageItems = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        const url = new URL('/api/repair-orders', window.location.origin);
+        url.searchParams.append('status', 'repaired');
+        url.searchParams.append('excludeDelivered', 'true');
+        if (activeBranchId) {
+          url.searchParams.append('branchId', activeBranchId);
+        }
+
         const [response] = await Promise.all([
-          fetch('/api/repair-orders?status=repaired&excludeDelivered=true'),
+          fetch(url.toString()),
           new Promise(resolve => setTimeout(resolve, 300)) // Delay mínimo
         ]);
 
@@ -58,7 +68,7 @@ const AsyncStorageList: React.FC = () => {
     };
 
     fetchStorageItems();
-  }, []);
+  }, [activeBranchId]);
 
   if (loading) {
     return <ListSkeleton />;

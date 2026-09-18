@@ -37,12 +37,18 @@ const getStatusLabel = (status: string) => {
       return 'Pendiente Diagnóstico';
     case 'diagnosis_confirmed':
       return 'Diagnóstico Confirmado';
+    case 'repair_accepted':
+      return 'Reparación Aceptada';
     case 'in_repair':
       return 'En Reparación';
     case 'repaired':
       return 'Reparado';
+    case 'delivered':
+      return 'Entregado';
     case 'completed':
       return 'Completado';
+    case 'repair_rejected':
+      return 'Reparación Rechazada';
     case 'cancelled':
       return 'Cancelado';
     default:
@@ -68,13 +74,14 @@ export default function RepairOrderDetails({
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   
   // Hook para manejar warranty claims
-  const { createWarrantyClaim, loading } = useWarrantyClaims(order?.id || '');
+  const { createWarrantyClaim, updateWarrantyClaim, loading } = useWarrantyClaims(order?.id || '');
   
   if (!order) return null;
 
-  const statusConfig = REPAIR_STATUS_CONFIG[order.status] || {
+  const statusConfig = REPAIR_STATUS_CONFIG[order.status as keyof typeof REPAIR_STATUS_CONFIG] || {
     label: order.status,
     color: 'default' as const,
     icon: 'eva:file-outline'
@@ -87,14 +94,16 @@ export default function RepairOrderDetails({
       fullScreen={isMobile}
       maxWidth={isMobile ? false : "md"}
       fullWidth={!isMobile}
+      scroll="paper"
       PaperProps={{
         sx: { 
           borderRadius: isMobile ? 0 : 2,
-          maxHeight: isMobile ? '100vh' : '90vh'
+          maxHeight: isMobile ? '100vh' : '92vh',
+          overflow: 'hidden',
         }
       }}
     >
-      <DialogTitle>
+      <DialogTitle component="div" sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Icon icon="eva:file-text-outline" width={24} />
@@ -116,7 +125,7 @@ export default function RepairOrderDetails({
         </Box>
       </DialogTitle>
       
-      <DialogContent sx={{ p: 3 }}>
+      <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'background.default' }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           
           {/* Información del Cliente */}
@@ -229,16 +238,17 @@ export default function RepairOrderDetails({
               />
               <CardContent sx={{ pt: 0 }}>
                 <ImageList 
-                  cols={isMobile ? 1 : 3} 
-                  gap={isMobile ? 4 : 8}
+                  cols={isMobile ? 2 : 3}
+                  gap={isMobile ? 8 : 12}
                   sx={{ 
                     width: '100%',
-                    maxHeight: isMobile ? 300 : 400,
-                    overflow: 'auto'
+                    maxHeight: isMobile ? 360 : 460,
+                    overflow: 'auto',
+                    gridAutoRows: isMobile ? 110 : 145,
                   }}
                 >
                   {order.images.map((imageUrl, index) => (
-                    <ImageListItem key={index}>
+                    <ImageListItem key={index} sx={{ overflow: 'hidden', borderRadius: 1.5, bgcolor: 'grey.100' }}>
                       <Box
                         component="img"
                         src={imageUrl}
@@ -246,22 +256,23 @@ export default function RepairOrderDetails({
                         loading="lazy"
                         sx={{
                           width: '100%',
-                          height: 120,
+                          height: '100%',
                           objectFit: 'cover',
-                          borderRadius: 1,
+                          borderRadius: 1.5,
                           cursor: 'pointer',
-                          transition: 'transform 0.2s',
+                          transition: 'transform 0.2s, filter 0.2s',
                           '&:hover': {
-                            transform: 'scale(1.05)'
+                            transform: 'scale(1.04)',
+                            filter: 'brightness(0.88)',
                           }
                         }}
-                        onClick={() => window.open(imageUrl, '_blank')}
+                        onClick={() => setSelectedImageIndex(index)}
                       />
                     </ImageListItem>
                   ))}
                 </ImageList>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Haz clic en cualquier imagen para verla en tamaño completo
+                  Selecciona una imagen para verla en tamaño completo
                 </Typography>
               </CardContent>
             </Card>
@@ -551,11 +562,29 @@ export default function RepairOrderDetails({
                 setSnackbarOpen(true);
               }
             }}
+            onUpdateClaim={async (claimId, claimData) => {
+              try {
+                const result = await updateWarrantyClaim(claimId, claimData);
+                if (result) {
+                  if (onOrderUpdate) {
+                    onOrderUpdate(result);
+                  }
+                  setSnackbarMessage('Reclamo de garantía actualizado');
+                  setSnackbarSeverity('success');
+                  setSnackbarOpen(true);
+                }
+              } catch (error) {
+                console.error('Error updating warranty claim:', error);
+                setSnackbarMessage('Error al actualizar el reclamo de garantía');
+                setSnackbarSeverity('error');
+                setSnackbarOpen(true);
+              }
+            }}
           />
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 3 }}>
+      <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper', position: 'sticky', bottom: 0, zIndex: 1 }}>
         <Button onClick={onClose} variant="outlined">
           Cerrar
         </Button>
@@ -569,6 +598,87 @@ export default function RepairOrderDetails({
           Editar
         </Button>
       </DialogActions>
+
+      {/* Visor interno de imágenes */}
+      <Dialog
+        open={selectedImageIndex !== null}
+        onClose={() => setSelectedImageIndex(null)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'grey.950',
+            color: 'common.white',
+            borderRadius: { xs: 0, sm: 2 },
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle component="div" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: { xs: 2, sm: 3 }, py: 1.5 }}>
+          <Typography variant="subtitle1">
+            Imagen {selectedImageIndex !== null ? selectedImageIndex + 1 : 0} de {order.images?.length || 0}
+          </Typography>
+          <IconButton onClick={() => setSelectedImageIndex(null)} aria-label="Cerrar visor" sx={{ color: 'common.white' }}>
+            <Icon icon="eva:close-outline" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 1, sm: 3 }, minHeight: { xs: 320, sm: 520 } }}>
+          {selectedImageIndex !== null && order.images?.[selectedImageIndex] && (
+            <Box
+              component="img"
+              src={order.images[selectedImageIndex]}
+              alt={`Imagen del dispositivo ${selectedImageIndex + 1}`}
+              sx={{ maxWidth: '100%', maxHeight: { xs: '60vh', sm: '68vh' }, objectFit: 'contain', borderRadius: 1 }}
+            />
+          )}
+          {order.images && order.images.length > 1 && selectedImageIndex !== null && (
+            <>
+              <IconButton
+                aria-label="Imagen anterior"
+                onClick={() => setSelectedImageIndex((selectedImageIndex - 1 + order.images!.length) % order.images!.length)}
+                sx={{ position: 'absolute', left: { xs: 4, sm: 16 }, color: 'common.white', bgcolor: 'rgba(0,0,0,.45)', '&:hover': { bgcolor: 'rgba(0,0,0,.7)' } }}
+              >
+                <Icon icon="eva:arrow-ios-back-outline" />
+              </IconButton>
+              <IconButton
+                aria-label="Imagen siguiente"
+                onClick={() => setSelectedImageIndex((selectedImageIndex + 1) % order.images!.length)}
+                sx={{ position: 'absolute', right: { xs: 4, sm: 16 }, color: 'common.white', bgcolor: 'rgba(0,0,0,.45)', '&:hover': { bgcolor: 'rgba(0,0,0,.7)' } }}
+              >
+                <Icon icon="eva:arrow-ios-forward-outline" />
+              </IconButton>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: 'rgba(0,0,0,.25)' }}>
+          <Button
+            onClick={() => setSelectedImageIndex(null)}
+            variant="outlined"
+            color="inherit"
+            startIcon={<Icon icon="eva:close-outline" />}
+            sx={{ borderColor: 'rgba(255,255,255,.55)', '&:hover': { borderColor: 'common.white', bgcolor: 'rgba(255,255,255,.08)' } }}
+          >
+            Cerrar visor
+          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" color="grey.300" sx={{ display: { xs: 'none', sm: 'block' } }}>
+              Usa las flechas para navegar
+            </Typography>
+            {selectedImageIndex !== null && order.images?.[selectedImageIndex] && (
+              <Button
+                component="a"
+                href={order.images[selectedImageIndex]}
+                target="_blank"
+                rel="noreferrer"
+                color="inherit"
+                startIcon={<Icon icon="eva:external-link-outline" />}
+              >
+                Abrir original
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar para mostrar mensajes */}
       <Snackbar

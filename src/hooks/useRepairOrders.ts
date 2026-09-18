@@ -50,7 +50,9 @@ export function useRepairOrders(): UseRepairOrdersResult {
         searchParams.append('branchId', activeBranchId);
       }
 
-      const response = await fetch(`/api/repairs?${searchParams.toString()}`);
+      const response = await fetch(`/api/repairs?${searchParams.toString()}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -78,29 +80,40 @@ export function useRepairOrders(): UseRepairOrdersResult {
     setLoading(true);
     setError(null);
 
-    try {
-      // Inyectar branchId si no viene en los datos y hay uno activo
+    const doCreate = async (): Promise<Response> => {
       const payload = {
         ...data,
         branchId: (data as any).branchId || activeBranchId
       };
-
-      const response = await fetch('/api/repairs', {
+      return fetch('/api/repairs', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
+    };
+
+    try {
+      let response = await doCreate();
+
+      // Si es 401, intentar refrescar la sesión y reintentar
+      if (response.status === 401) {
+        const { supabase } = await import('@/lib/supabase/client');
+        const { data: { session } } = await supabase.auth.refreshSession();
+        if (session?.access_token) {
+          document.cookie = `auth_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+        }
+        response = await doCreate();
+      }
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
 
       if (result.success) {
-        // Agregar la nueva orden al estado local
         setOrders(prev => [result.data, ...prev]);
         return result.data;
       } else {
@@ -113,7 +126,7 @@ export function useRepairOrders(): UseRepairOrdersResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeBranchId]);
 
   const updateOrder = useCallback(async (id: string, data: any): Promise<RepairOrder> => {
     setLoading(true);

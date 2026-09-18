@@ -8,6 +8,7 @@ import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import { ChartSkeleton } from '@/components/ui/SkeletonLoader';
 import { Icon } from '@iconify/react';
+import { useAuthStore } from '@/store/auth.store';
 
 interface WarrantyMetrics {
   totalClaims: number;
@@ -22,14 +23,21 @@ const AsyncWarrantyMetrics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { activeBranchId } = useAuthStore();
+
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        const url = new URL('/api/warranty/metrics', window.location.origin);
+        if (activeBranchId) {
+          url.searchParams.append('branchId', activeBranchId);
+        }
+
         const [response] = await Promise.all([
-          fetch('/api/warranty/metrics'),
+          fetch(url.toString()),
           new Promise(resolve => setTimeout(resolve, 400)) // Delay mínimo
         ]);
 
@@ -53,7 +61,7 @@ const AsyncWarrantyMetrics: React.FC = () => {
     };
 
     fetchMetrics();
-  }, []);
+  }, [activeBranchId]);
 
   if (loading) {
     return <ChartSkeleton />;

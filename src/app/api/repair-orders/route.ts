@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { RepairOrderSearchFilters } from '@/types/repair';
+import { getTenantContext } from '@/app/api/repairs/route';
 
 export async function GET(request: NextRequest) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const branchId = searchParams.get('branchId');
     const excludeDelivered = searchParams.get('excludeDelivered') === 'true';
     const deviceType = searchParams.get('deviceType');
     const clientName = searchParams.get('clientName');
     const sortBy = (searchParams.get('sortBy') as 'createdAt' | 'folio' | 'status' | 'clientName') || 'createdAt';
     const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
 
-    const repository = RepositoryFactory.getRepairOrders();
+    const repository = RepositoryFactory.getRepairOrders(ctx);
 
     // Obtener todas las órdenes y filtrar localmente por ahora
     const allOrders = await repository.findAll();
@@ -20,6 +27,10 @@ export async function GET(request: NextRequest) {
     let filteredOrders = allOrders;
     
     // Aplicar filtros
+    if (branchId) {
+      filteredOrders = filteredOrders.filter(order => order.branchId === branchId);
+    }
+
     if (status) {
       filteredOrders = filteredOrders.filter(order => order.status === status);
     }

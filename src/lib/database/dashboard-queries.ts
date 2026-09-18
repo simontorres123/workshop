@@ -1,8 +1,7 @@
 import { RepairOrder, RepairStatus, WarrantyClaim } from '@/types/repair';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { addMonths, differenceInDays } from 'date-fns';
-
-const repairOrderRepository = RepositoryFactory.getRepairOrders();
+import { TenantContext } from '@/repositories/supabase-repair-order.repository';
 
 // Detectar si estamos en el cliente o servidor
 const isClient = typeof window !== 'undefined';
@@ -22,15 +21,17 @@ export interface DashboardFilters {
   technician?: string;
   urgentOnly?: boolean;
   status?: RepairStatus[];
+  branchId?: string;
 }
 
 /**
  * Obtiene órdenes reparadas esperando entrega con filtros
  */
-export async function getRepairedOrdersWaitingPickup(filters: DashboardFilters = {}): Promise<RepairOrder[]> {
+export async function getRepairedOrdersWaitingPickup(ctx: TenantContext, filters: DashboardFilters = {}): Promise<RepairOrder[]> {
   throwIfClient('getRepairedOrdersWaitingPickup');
   
   try {
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
     // Usar el repository real para obtener órdenes reparadas no entregadas
     let orders = await repairOrderRepository.getRepairedNotDelivered();
 
@@ -39,6 +40,10 @@ export async function getRepairedOrdersWaitingPickup(filters: DashboardFilters =
       orders = orders.filter(order => 
         order.deviceType?.toLowerCase().includes(filters.deviceType!.toLowerCase())
       );
+    }
+
+    if (filters.branchId) {
+      orders = orders.filter(order => order.branchId === filters.branchId);
     }
 
     if (filters.clientName) {
@@ -57,10 +62,11 @@ export async function getRepairedOrdersWaitingPickup(filters: DashboardFilters =
 /**
  * Obtiene órdenes urgentes con diagnóstico pendiente o en reparación por más de 3 días
  */
-export async function getUrgentRepairOrders(filters: DashboardFilters = {}): Promise<RepairOrder[]> {
+export async function getUrgentRepairOrders(ctx: TenantContext, filters: DashboardFilters = {}): Promise<RepairOrder[]> {
   throwIfClient('getUrgentRepairOrders');
 
   try {
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
     const allOrders = await repairOrderRepository.findAll();
     const now = new Date();
     
@@ -72,6 +78,7 @@ export async function getUrgentRepairOrders(filters: DashboardFilters = {}): Pro
       // Aplicar filtros básicos
       if (filters.deviceType && !order.deviceType?.toLowerCase().includes(filters.deviceType.toLowerCase())) return false;
       if (filters.clientName && !order.clientName?.toLowerCase().includes(filters.clientName.toLowerCase())) return false;
+      if (filters.branchId && order.branchId !== filters.branchId) return false;
 
       // Calcular antigüedad (más de 3 días es urgente)
       const createdAt = new Date(order.createdAt);
@@ -88,22 +95,29 @@ export async function getUrgentRepairOrders(filters: DashboardFilters = {}): Pro
 /**
  * Estadísticas de garantía para el dashboard
  */
-export async function getWarrantyStats() {
+export async function getWarrantyStats(ctx: TenantContext) {
   throwIfClient('getWarrantyStats');
 
   try {
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
     const allOrders = await repairOrderRepository.findAll();
     
+    let filteredOrders = allOrders;
+    if (filters?.branchId) {
+      filteredOrders = filteredOrders.filter(o => o.branchId === filters.branchId);
+    }
+
     // Filtrar órdenes que tienen o tuvieron garantía
-    const warrantyOrders = allOrders.filter(o => (o.warrantyClaims && o.warrantyClaims.length > 0) || o.status === 'completed');
+    const warrantyOrders = filteredOrders.filter(o => (o.warrantyClaims && o.warrantyClaims.length > 0) || o.status === 'completed');
     
-    const totalClaims = allOrders.reduce((sum, o) => sum + (o.warrantyClaims?.length || 0), 0);
-    const pendingClaims = allOrders.reduce((sum, o) => 
+    const totalOrders = filteredOrders.length;
+    const totalClaims = filteredOrders.reduce((sum, o) => sum + (o.warrantyClaims?.length || 0), 0);
+    const pendingClaims = filteredOrders.reduce((sum, o) => 
       sum + (o.warrantyClaims?.filter(c => c.status === 'pending' || c.status === 'in_review').length || 0), 0
     );
 
     return {
-      totalOrders: allOrders.length,
+      totalOrders,
       warrantyOrders: warrantyOrders.length,
       totalClaims,
       pendingClaims,
@@ -118,15 +132,17 @@ export async function getWarrantyStats() {
 /**
  * Obtiene órdenes próximas a vencer su periodo de almacenamiento gratuito
  */
-export async function getExpiringStorageOrders(filters: DashboardFilters = {}) {
+export async function getExpiringStorageOrders(ctx: TenantContext, filters: DashboardFilters = {}) {
   throwIfClient('getExpiringStorageOrders');
 
   try {
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
     const allOrders = await repairOrderRepository.findAll();
     const now = new Date();
     
     // Almacenamiento gratuito por defecto: 1 mes después de terminada la reparación
     return allOrders.filter(order => {
+      if (filters.branchId && order.branchId !== filters.branchId) return false;
       if (order.status !== 'repaired') return false;
       if (!order.completedAt) return false;
 
@@ -148,14 +164,16 @@ export async function getExpiringStorageOrders(filters: DashboardFilters = {}) {
   /**
   * Obtiene métricas detalladas de garantía para gráficos
   */
-  export async function getWarrantyMetrics(filters: DashboardFilters = {}) {
+  export async function getWarrantyMetrics(ctx: TenantContext, filters: DashboardFilters = {}) {
   throwIfClient('getWarrantyMetrics');
 
   try {
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
     const allOrders = await repairOrderRepository.findAll();
 
     // Filtrar por fechas si aplica
     const filteredOrders = allOrders.filter(order => {
+      if (filters.branchId && order.branchId !== filters.branchId) return false;
       const createdAt = new Date(order.createdAt);
       if (filters.dateFrom && createdAt < filters.dateFrom) return false;
       if (filters.dateTo && createdAt > filters.dateTo) return false;

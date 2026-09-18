@@ -52,6 +52,10 @@ export function useAuth() {
 
         if (mounted) {
           if (session?.user) {
+            // Actualizar la cookie con el token actual
+            if (session.access_token) {
+              document.cookie = `auth_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+            }
             setUser(session.user);
             await loadProfile(session.user.id);
           } else {
@@ -72,11 +76,15 @@ export function useAuth() {
 
     initAuth();
 
-    // Escuchar cambios futuros
+    // Escuchar cambios futuros (incluyendo TOKEN_REFRESHED)
     const subscription = authService.onAuthStateChange(async (session) => {
       if (!mounted) return;
 
       if (session?.user) {
+        // Actualizar la cookie con el token fresco (puede haberse renovado)
+        if (session.access_token) {
+          document.cookie = `auth_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+        }
         const currentUser = useAuthStore.getState().user;
         if (currentUser?.id !== session.user.id) {
           setUser(session.user);

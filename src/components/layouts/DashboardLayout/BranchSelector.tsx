@@ -32,7 +32,11 @@ export default function BranchSelector() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const userRole = profile?.role;
-  const showSelector = userRole === 'org_admin' || userRole === 'super_admin';
+  const assignedBranches = (profile as any)?.assignedBranches || [];
+  
+  // Mostrar el selector si es admin, o si es técnico pero tiene más de 1 sucursal asignada
+  const showSelector = userRole === 'org_admin' || userRole === 'super_admin' || 
+    ((userRole === 'technician' || userRole === 'branch_admin') && assignedBranches.length > 1);
 
   useEffect(() => {
     if (showSelector && profile?.organization_id) {
@@ -43,12 +47,20 @@ export default function BranchSelector() {
   const loadBranches = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('branches')
         .select('id, name')
         .eq('organization_id', profile!.organization_id!)
-        .eq('is_active', true)
-        .order('name');
+        .eq('is_active', true);
+
+      // Si no es admin global, filtrar solo por sus sucursales asignadas
+      if (userRole !== 'org_admin' && userRole !== 'super_admin') {
+        if (assignedBranches.length > 0) {
+          query = query.in('id', assignedBranches);
+        }
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
       setBranches(data || []);

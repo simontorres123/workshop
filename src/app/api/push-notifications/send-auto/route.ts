@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pushNotificationService } from '@/services/push-notification.service';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 // POST /api/push-notifications/send-auto - Enviar notificación automática inmediata
 export async function POST(request: NextRequest) {
@@ -8,43 +8,51 @@ export async function POST(request: NextRequest) {
 
     console.log('🤖 Enviando notificación automática inmediata:', { type, title });
 
-    // Crear el payload para la notificación
-    const notificationPayload = {
-      title,
-      body,
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      data: data || { url: '/dashboard' },
-      tag: `auto-${type}-${Date.now()}`,
-      timestamp: Date.now(),
-      requireInteraction: false,
-      sound: '/notification-sound.mp3',
-      playSound: true,
-      silent: false
-    };
+    // Identificar al usuario solicitante
+    let token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      token = request.cookies.get('auth_token')?.value;
+    }
+    
+    let userId = null;
 
-    console.log('📱 Payload de notificación automática:', notificationPayload);
+    if (token) {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+      }
+    }
 
-    // REALMENTE enviar la notificación usando el service
-    const result = await pushNotificationService.sendNotificationToAll({
-      title: notificationPayload.title,
-      body: notificationPayload.body,
-      icon: notificationPayload.icon,
-      data: notificationPayload.data,
-      tag: notificationPayload.tag,
-      requireInteraction: notificationPayload.requireInteraction
-    });
+    if (!userId) {
+       return NextResponse.json({
+        success: false,
+        error: 'Usuario no autenticado'
+      }, { status: 401 });
+    }
 
-    console.log('✅ Notificación automática enviada:', result);
+    // Insertar la notificación en In-App Notifications
+    const { error: insertError } = await supabaseAdmin
+      .from('in_app_notifications')
+      .insert({
+        user_id: userId,
+        title: title,
+        body: body,
+        type: type || 'info',
+        link: data?.url
+      });
+
+    if (insertError) {
+      console.error('❌ Error insertando notificación in-app automática:', insertError);
+      throw insertError;
+    }
+
+    console.log('✅ Notificación in-app automática insertada para el usuario:', userId);
 
     // Retornar confirmación
     return NextResponse.json({
       success: true,
-      message: 'Notificación automática enviada',
-      action: 'show_notification',
-      payload: notificationPayload,
+      message: 'Notificación automática in-app enviada',
       type: 'automatic',
-      pushResult: result,
       data: {
         sentAt: new Date().toISOString(),
         notificationType: type,
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Error sending automatic notification:', error);
+    console.error('❌ Error sending automatic in-app notification:', error);
     
     return NextResponse.json({
       success: false,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RepairOrder, RepairStatus } from '@/types/repair';
 import { calculateStorageAlerts, StorageCalculationResult } from '@/utils/storageAlerts';
+import { useAuthStore } from '@/store/auth.store';
 
 interface UseRepairedOrdersResult {
   repairedOrders: RepairOrder[];
@@ -27,6 +28,7 @@ export function useRepairedOrders(filters: RepairedOrdersFilters = {}): UseRepai
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const { activeBranchId } = useAuthStore();
 
   const fetchRepairedOrders = useCallback(async () => {
     // Evitar múltiples peticiones simultáneas
@@ -55,6 +57,9 @@ export function useRepairedOrders(filters: RepairedOrdersFilters = {}): UseRepai
       }
       if (filters.sortOrder) {
         searchParams.set('sortOrder', filters.sortOrder);
+      }
+      if (activeBranchId) {
+        searchParams.set('branchId', activeBranchId);
       }
 
       const response = await fetch(`/api/repair-orders?${searchParams.toString()}`);
@@ -108,7 +113,8 @@ export function useRepairedOrders(filters: RepairedOrdersFilters = {}): UseRepai
     filters.sortBy,
     filters.sortOrder,
     filters.daysInStorageMin,
-    filters.daysInStorageMax
+    filters.daysInStorageMax,
+    activeBranchId
   ]);
 
   useEffect(() => {

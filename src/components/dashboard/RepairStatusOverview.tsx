@@ -26,6 +26,7 @@ import { Icon } from '@iconify/react';
 import { RepairOrder, RepairStatus, REPAIR_STATUS_CONFIG } from '@/types/repair';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useAuthStore } from '@/store/auth.store';
 
 interface StatusCount {
   status: string;
@@ -51,16 +52,24 @@ export default function RepairStatusOverview({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<StatusCount | null>(null);
 
+  const { activeBranchId } = useAuthStore();
+
   useEffect(() => {
     fetchStatusData();
-  }, []);
+  }, [activeBranchId]);
 
   const fetchStatusData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/repair-orders?includeAll=true');
+      const url = new URL('/api/repair-orders', window.location.origin);
+      url.searchParams.append('includeAll', 'true');
+      if (activeBranchId) {
+        url.searchParams.append('branchId', activeBranchId);
+      }
+
+      const response = await fetch(url.toString());
       const result = await response.json();
 
       if (!result.success) {
@@ -396,6 +405,8 @@ export default function RepairStatusOverview({
                         />
                       </ListItemIcon>
                       <ListItemText
+                        primaryTypographyProps={{ component: 'div' }}
+                        secondaryTypographyProps={{ component: 'div' }}
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                             <Typography variant="subtitle2" fontWeight="bold">

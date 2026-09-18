@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 // Interface para la suscripción web push
 interface WebPushSubscription {
@@ -22,22 +23,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Aquí deberías guardar la suscripción en tu base de datos
-    // Por ahora solo simulamos que se guarda correctamente
-    console.log('✅ Web push subscription received:', {
-      endpoint: subscription.endpoint.substring(0, 50) + '...',
-      hasKeys: true
-    });
+    // Identificar al usuario autenticado
+    let token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      token = request.cookies.get('auth_token')?.value;
+    }
+    
+    let userId = null;
 
-    // En una implementación real, guardarías esto en Cosmos DB:
-    // await subscriptionRepository.create({
-    //   id: generateId(),
-    //   endpoint: subscription.endpoint,
-    //   keys: subscription.keys,
-    //   createdAt: new Date(),
-    //   userId: getCurrentUserId(), // si tienes autenticación
-    //   active: true
-    // });
+    if (token) {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+      }
+    }
+
+    // Insertar la suscripción en Supabase usando onConflict (upsert)
+    // El endpoint es UNIQUE, así que actualizamos las keys si ya existe
+    const { error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .upsert({
+        user_id: userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+        created_at: new Date().toISOString()
+      }, {
+        onConflict: 'endpoint'
+      });
+
+    if (error) {
+      console.error('❌ Error guardando suscripción en Supabase:', error);
+      throw error;
+    }
+
+    console.log('✅ Web push subscription saved for user:', userId || 'anonymous');
 
     return NextResponse.json({
       success: true,
@@ -65,11 +85,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // TODO: Eliminar la suscripción de la base de datos
-    console.log('🗑️ Web push subscription removed:', endpoint.substring(0, 50) + '...');
+    const { error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint);
 
-    // En una implementación real:
-    // await subscriptionRepository.deleteByEndpoint(endpoint);
+    if (error) {
+      console.error('❌ Error eliminando suscripción en Supabase:', error);
+      throw error;
+    }
+
+    console.log('🗑️ Web push subscription removed:', endpoint.substring(0, 50) + '...');
 
     return NextResponse.json({
       success: true,

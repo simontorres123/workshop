@@ -18,10 +18,6 @@ import {
   Fab,
   Alert,
   Skeleton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   TextField,
   Tooltip,
   useMediaQuery,
@@ -29,12 +25,14 @@ import {
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { Icon } from '@iconify/react';
-import type { RepairOrder } from '@/types/repair';
+import { RepairStatus, type RepairOrder } from '@/types/repair';
 import DataTable from '@/components/ui/DataTable';
 import StatCard from '@/components/ui/StatCard';
 import RepairOrderForm from '@/components/repairs/RepairOrderForm';
 import RepairOrderDetails from '@/components/repairs/RepairOrderDetails';
+import RepairStatusStepper, { getNextRepairStatus } from '@/components/repairs/RepairStatusStepper';
 import { useRepairOrders } from '@/hooks/useRepairOrders';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -44,11 +42,14 @@ const getStatusColor = (status: string) => {
       return 'warning';
     case 'diagnosis_confirmed':
       return 'info';
+    case 'repair_accepted':
     case 'in_repair':
       return 'primary';
     case 'repaired':
+    case 'delivered':
     case 'completed':
       return 'success';
+    case 'repair_rejected':
     case 'cancelled':
       return 'error';
     default:
@@ -62,27 +63,24 @@ const getStatusLabel = (status: string) => {
       return 'Pendiente Diagnóstico';
     case 'diagnosis_confirmed':
       return 'Diagnóstico Confirmado';
+    case 'repair_accepted':
+      return 'Reparación Aceptada';
     case 'in_repair':
       return 'En Reparación';
     case 'repaired':
       return 'Reparado';
+    case 'delivered':
+      return 'Entregado';
     case 'completed':
       return 'Completado';
+    case 'repair_rejected':
+      return 'Reparación Rechazada';
     case 'cancelled':
       return 'Cancelado';
     default:
       return status;
   }
 };
-
-const statusOptions = [
-  { value: 'pending_diagnosis', label: 'Pendiente Diagnóstico', color: 'warning' },
-  { value: 'diagnosis_confirmed', label: 'Diagnóstico Confirmado', color: 'info' },
-  { value: 'in_repair', label: 'En Reparación', color: 'primary' },
-  { value: 'repaired', label: 'Reparado', color: 'success' },
-  { value: 'completed', label: 'Completado', color: 'success' },
-  { value: 'cancelled', label: 'Cancelado', color: 'error' },
-];
 
 export default function RepairsPage() {
   const theme = useTheme();
@@ -99,6 +97,7 @@ export default function RepairsPage() {
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
 
+  const { organizationId } = useAuth();
   const { orders, loading, error, fetchOrders, deleteOrder, updateOrderStatus, updateOrderInList, clearError } = useRepairOrders();
 
   useEffect(() => {
@@ -174,7 +173,7 @@ export default function RepairsPage() {
     const order = orders.find(o => o.id === orderId);
     if (order) {
       setSelectedOrder(order);
-      setNewStatus(order.status);
+      setNewStatus(getNextRepairStatus(order.status));
       setStatusNote('');
       setOpenStatusDialog(true);
     }
@@ -239,18 +238,21 @@ export default function RepairsPage() {
     },
     {
       field: 'clientName',
-      headerName: 'Cliente & Aparato',
+      headerName: 'Cliente y aparato',
       flex: 2,
       minWidth: 200,
       renderCell: (params: any) => (
         <Box>
           <Typography variant="body2" fontWeight="medium" noWrap>
+            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>Cliente:</Box>
             {params.row.clientName}
           </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
+          <Typography variant="caption" color="text.secondary" noWrap display="block">
+            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>Aparato:</Box>
             {params.row.deviceBrand} {params.row.deviceType}
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block">
+            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>Ingreso:</Box>
             {format(new Date(params.row.createdAt), 'dd/MM/yyyy', { locale: es })}
           </Typography>
         </Box>
@@ -258,7 +260,7 @@ export default function RepairsPage() {
     },
     {
       field: 'actions',
-      headerName: '',
+      headerName: 'Acciones',
       width: 140,
       sortable: false,
       renderCell: (params: any) => (
@@ -289,14 +291,14 @@ export default function RepairsPage() {
             </Tooltip>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <Tooltip title="Estado" arrow>
+            <Tooltip title="Siguiente paso" arrow>
               <IconButton 
                 size="small" 
                 onClick={() => handleChangeStatus(params.row.id)}
                 color="primary"
                 sx={{ minWidth: 28, minHeight: 28 }}
               >
-                <Icon icon="eva:clock-outline" width={16} />
+                <Icon icon="eva:arrow-forward-outline" width={16} />
               </IconButton>
             </Tooltip>
             <Tooltip title="Eliminar" arrow>
@@ -395,13 +397,13 @@ export default function RepairsPage() {
               <Icon icon="eva:edit-outline" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Estado" arrow>
+          <Tooltip title="Siguiente paso" arrow>
             <IconButton 
               size="small" 
               onClick={() => handleChangeStatus(params.row.id)}
               color="primary"
             >
-              <Icon icon="eva:clock-outline" />
+              <Icon icon="eva:arrow-forward-outline" />
             </IconButton>
           </Tooltip>
         </Box>
@@ -507,13 +509,13 @@ export default function RepairsPage() {
               <Icon icon="eva:edit-outline" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Cambiar estado de la reparación" arrow>
+          <Tooltip title="Siguiente paso de la reparación" arrow>
             <IconButton 
               size="small" 
               onClick={() => handleChangeStatus(params.row.id)}
               color="primary"
             >
-              <Icon icon="eva:clock-outline" />
+              <Icon icon="eva:arrow-forward-outline" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Eliminar orden permanentemente" arrow>
@@ -645,6 +647,8 @@ export default function RepairsPage() {
                   },
                 }}
                 pageSizeOptions={isMobile ? [5, 10] : [5, 10, 25]}
+                checkboxSelection={false}
+                autoHeight={isMobile}
                 sx={{
                   '& .MuiDataGrid-root': {
                     border: 'none',
@@ -652,54 +656,64 @@ export default function RepairsPage() {
                   '& .MuiDataGrid-cell': {
                     fontSize: isMobile ? '0.75rem' : '0.875rem',
                     padding: isMobile ? '8px 4px' : '16px',
+                    whiteSpace: 'normal',
+                    lineHeight: 1.35,
+                    alignItems: 'center',
                   },
                   '& .MuiDataGrid-columnHeaders': {
                     fontSize: isMobile ? '0.75rem' : '0.875rem',
                     fontWeight: 600,
                   },
-                  '& .MuiDataGrid-row': {
-                    minHeight: isMobile ? '120px !important' : '52px !important',
-                  },
                 }}
+                getRowHeight={() => 'auto'}
               />
             )}
           </CardContent>
         </Card>
 
         {/* Floating Action Button */}
-        <Fab
-          color="primary"
-          aria-label="nueva reparación"
-          onClick={handleCreateOrder}
-          size={isMobile ? "medium" : "large"}
-          sx={{
-            position: 'fixed',
-            bottom: isMobile ? 16 : 24,
-            right: isMobile ? 16 : 24,
-            zIndex: theme.zIndex.speedDial,
-          }}
-        >
-          <Icon icon="eva:plus-outline" width={isMobile ? 20 : 24} />
-        </Fab>
+        <Tooltip title={!organizationId ? "Necesitas una organización asignada para crear órdenes" : "Nueva Orden de Reparación"} placement="left">
+          <span>
+            <Fab
+              color="primary"
+              aria-label="nueva reparación"
+              onClick={handleCreateOrder}
+              size={isMobile ? "medium" : "large"}
+              disabled={!organizationId}
+              sx={{
+                position: 'fixed',
+                bottom: isMobile ? 16 : 24,
+                right: isMobile ? 16 : 24,
+                zIndex: theme.zIndex.speedDial,
+                ...( !organizationId && {
+                  bgcolor: 'action.disabledBackground',
+                  color: 'text.disabled',
+                })
+              }}
+            >
+              <Icon icon="eva:plus-outline" width={isMobile ? 20 : 24} />
+            </Fab>
+          </span>
+        </Tooltip>
 
         {/* Repair Order Form Dialog */}
         <Dialog
           open={openForm}
           onClose={handleCloseForm}
           fullScreen={isMobile}
-          maxWidth={isMobile ? false : "xl"}
+          maxWidth={isMobile ? false : "lg"}
           fullWidth={!isMobile}
           PaperProps={{
             sx: { 
               borderRadius: isMobile ? 0 : 2,
-              maxHeight: isMobile ? '100vh' : '95vh',
-              minHeight: isMobile ? '100vh' : '80vh',
+              maxHeight: isMobile ? '100vh' : '92vh',
+              minHeight: isMobile ? '100vh' : undefined,
               m: isMobile ? 0 : 1
             }
           }}
-          scroll="body"
+          scroll="paper"
         >
-          <DialogTitle sx={{ pb: 1 }}>
+          <DialogTitle component="div" sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -708,16 +722,21 @@ export default function RepairsPage() {
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Icon icon="eva:plus-circle-outline" width={24} />
-                <Typography variant="h6">
+                <Box>
+                  <Typography variant="h6">
                   {selectedOrder ? 'Editar Orden de Reparación' : 'Nueva Orden de Reparación'}
-                </Typography>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Completa la información por secciones para registrar la orden.
+                  </Typography>
+                </Box>
               </Box>
               <IconButton onClick={handleCloseForm} size="small">
                 <Icon icon="eva:close-outline" width={20} />
               </IconButton>
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ px: 3, py: 2 }}>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: 'background.default' }}>
             <RepairOrderForm
               order={selectedOrder}
               onSave={handleSaveOrder}
@@ -751,7 +770,7 @@ export default function RepairsPage() {
           maxWidth={isMobile ? false : "sm"}
           fullWidth={!isMobile}
         >
-          <DialogTitle>
+          <DialogTitle component="div" sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'error.50' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Icon icon="eva:alert-triangle-outline" width={24} color="error" />
               <Typography variant="h6">
@@ -759,7 +778,7 @@ export default function RepairsPage() {
               </Typography>
             </Box>
           </DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
             <Typography variant="body1" sx={{ mb: 2 }}>
               ¿Estás seguro de que deseas eliminar la orden de reparación <strong>{selectedOrder?.folio}</strong>?
             </Typography>
@@ -778,7 +797,7 @@ export default function RepairsPage() {
               Esta acción no se puede deshacer
             </Alert>
           </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3 }}>
+          <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', position: 'sticky', bottom: 0, bgcolor: 'background.paper' }}>
             <Button
               onClick={handleCancelDelete}
               disabled={deleting}
@@ -802,44 +821,49 @@ export default function RepairsPage() {
           open={openStatusDialog}
           onClose={handleCancelStatusChange}
           fullScreen={isMobile}
-          maxWidth={isMobile ? false : "sm"}
+          maxWidth={isMobile ? false : "md"}
           fullWidth={!isMobile}
         >
-          <DialogTitle>
+          <DialogTitle component="div" sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Icon icon="eva:refresh-outline" width={24} />
+              <Icon icon="eva:arrow-forward-outline" width={24} />
               <Typography variant="h6">
-                Cambiar Estado de la Orden
+                Avanzar estado de la orden
               </Typography>
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ pt: 2 }}>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: 'background.default' }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Orden: <strong>{selectedOrder?.folio}</strong> - {selectedOrder?.clientName}
             </Typography>
             
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Nuevo Estado</InputLabel>
-              <Select
-                value={newStatus}
-                label="Nuevo Estado"
-                onChange={(e) => setNewStatus(e.target.value)}
+            {selectedOrder && (
+              <RepairStatusStepper currentStatus={selectedOrder.status} isMobile={isMobile} />
+            )}
+
+            {newStatus ? (
+              <Alert severity="info" sx={{ mb: 3 }} icon={<Icon icon="eva:arrow-forward-outline" />}>
+                Siguiente paso: <strong>{getStatusLabel(newStatus)}</strong>
+              </Alert>
+            ) : (
+              <Alert severity="success" sx={{ mb: 3 }}>
+                Esta orden ya está en el último paso del proceso.
+              </Alert>
+            )}
+
+            {selectedOrder?.status === RepairStatus.DIAGNOSIS_CONFIRMED && (
+              <Button
+                color="error"
+                variant="text"
+                size="small"
+                onClick={() => setNewStatus(RepairStatus.REPAIR_REJECTED)}
                 disabled={updatingStatus}
+                startIcon={<Icon icon="eva:close-circle-outline" />}
+                sx={{ mb: 2 }}
               >
-                {statusOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip
-                        label={option.label}
-                        color={option.color as any}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                Marcar reparación como rechazada
+              </Button>
+            )}
 
             <TextField
               fullWidth
@@ -852,7 +876,7 @@ export default function RepairsPage() {
               placeholder="Agregar notas sobre el cambio de estado..."
             />
           </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3 }}>
+          <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', position: 'sticky', bottom: 0, bgcolor: 'background.paper' }}>
             <Button
               onClick={handleCancelStatusChange}
               disabled={updatingStatus}
@@ -865,7 +889,7 @@ export default function RepairsPage() {
               disabled={updatingStatus || !newStatus}
               startIcon={updatingStatus ? undefined : <Icon icon="eva:checkmark-outline" />}
             >
-              {updatingStatus ? 'Actualizando...' : 'Actualizar Estado'}
+              {updatingStatus ? 'Actualizando...' : newStatus ? `Avanzar a ${getStatusLabel(newStatus)}` : 'Proceso completado'}
             </Button>
           </DialogActions>
         </Dialog>

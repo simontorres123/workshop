@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { v4 as uuidv4 } from 'uuid';
-
-const repairOrderRepository = RepositoryFactory.getRepairOrders();
+import { getTenantContext } from '@/app/api/repairs/route';
 
 // POST /api/repair-orders/[id]/warranty-claims - Agregar reclamo de garantía
 export async function POST(
@@ -10,6 +9,12 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    }
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
+
     console.log('POST warranty claim - awaiting params...');
     const resolvedParams = await context.params;
     const { id } = resolvedParams;
@@ -113,6 +118,12 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    }
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx);
+
     const resolvedParams = await context.params;
     const { id } = resolvedParams;
     const order = await repairOrderRepository.findById(id);

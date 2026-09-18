@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepairOrder, WarrantyClaim } from '@/types/repair';
 import { getWarrantyMetrics, DashboardFilters } from '@/lib/database/dashboard-queries';
+import { getTenantContext } from '@/app/api/repairs/route';
 
 export async function GET(request: NextRequest) {
   try {
+    const ctx = await getTenantContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     
     // Extraer filtros de los parámetros de consulta
@@ -11,10 +16,11 @@ export async function GET(request: NextRequest) {
       deviceType: searchParams.get('deviceType') || undefined,
       dateFrom: searchParams.get('dateFrom') ? new Date(searchParams.get('dateFrom')!) : undefined,
       dateTo: searchParams.get('dateTo') ? new Date(searchParams.get('dateTo')!) : undefined,
+      branchId: searchParams.get('branchId') || undefined,
     };
 
     // Obtener métricas de garantía desde la base de datos
-    const metrics = await getWarrantyMetrics(filters);
+    const metrics = await getWarrantyMetrics(ctx, filters);
 
     return NextResponse.json({
       success: true,

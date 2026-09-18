@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import AsyncWarrantyStorageDashboard from '@/components/dashboard/AsyncWarrantyStorageDashboard';
+import RedesignedDashboard from '@/components/dashboard/RedesignedDashboard';
 import { StatsGridSkeleton } from '@/components/ui/SkeletonLoader';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -21,7 +21,7 @@ export default function DashboardPage() {
         </Container>
       }
     >
-      <AsyncWarrantyStorageDashboard />
+      <RedesignedDashboard />
     </Suspense>
   );
 }

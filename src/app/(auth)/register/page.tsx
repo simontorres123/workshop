@@ -29,6 +29,7 @@ export default function RegisterPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,6 +37,7 @@ export default function RegisterPage() {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setSuccessMessage(null);
     
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
@@ -65,13 +67,19 @@ export default function RegisterPage() {
         useAuthStore.getState().setProfile(profile);
       }
 
+      if (user && !session) {
+        setSuccessMessage('¡Taller registrado exitosamente! Por favor, verifica la bandeja de entrada (o spam) de tu correo electrónico para activar tu cuenta.');
+        // Limpiamos los datos del formulario (opcional) pero dejamos la pantalla para que lea el mensaje
+        setIsSubmitting(false);
+        return;
+      }
+
       if (session) {
         // Guarda el token en cookie (válido por 1 hora por defecto en Supabase)
         document.cookie = `auth_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+        // Redirige al dashboard directamente solo si ya hay sesión activa
+        router.push('/dashboard');
       }
-
-      // Redirige al dashboard directamente
-      router.push('/dashboard');
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(err.message || 'Error al registrar el taller. Inténtalo de nuevo.');
@@ -167,7 +175,29 @@ export default function RegisterPage() {
             </Box>
 
             <Box component="form" onSubmit={handleSubmit} noValidate>
-              <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 2 }}>
+              {successMessage ? (
+                <Box sx={{ textAlign: 'center', py: 2 }}>
+                  <Alert severity="success" sx={{ mb: 3, borderRadius: 2, textAlign: 'left' }}>
+                    {successMessage}
+                  </Alert>
+                  <Button
+                    component={NextLink}
+                    href="/login"
+                    variant="contained"
+                    fullWidth
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 2,
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    Ir al Inicio de Sesión
+                  </Button>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 2 }}>
                 <TextField
                   fullWidth
                   required
@@ -261,8 +291,10 @@ export default function RegisterPage() {
                   </MuiLink>
                 </Typography>
               </Box>
-            </Box>
-          </Paper>
+            </>
+            )}
+          </Box>
+        </Paper>
         </Slide>
       </Box>
     </Box>

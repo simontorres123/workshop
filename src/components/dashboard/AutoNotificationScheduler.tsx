@@ -28,6 +28,12 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { esES } from '@mui/x-date-pickers/locales';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface ScheduledNotification {
   id: string;
@@ -58,7 +64,8 @@ export default function AutoNotificationScheduler() {
     type: '',
     schedule: '',
     customTime: { hour: 9, minute: 0 },
-    frequency: 'daily', // daily, weekly, custom
+    customDate: new Date().toISOString().split('T')[0],
+    frequency: 'daily', // daily, weekly, once
     weekday: 1, // 1=lunes, 7=domingo (para weekly)
     testRun: false
   });
@@ -84,8 +91,16 @@ export default function AutoNotificationScheduler() {
 
   const frequencyOptions = [
     { value: 'daily', label: 'Diario' },
-    { value: 'weekly', label: 'Semanal' }
+    { value: 'weekly', label: 'Semanal' },
+    { value: 'once', label: 'Única vez' }
   ];
+
+  const getCustomDateTimeValue = () => {
+    const [year, month, day] = newNotification.customDate.split('-').map(Number);
+    const { hour, minute } = newNotification.customTime;
+    const value = new Date(year, month - 1, day, hour, minute);
+    return Number.isNaN(value.getTime()) ? new Date() : value;
+  };
 
   // Cargar notificaciones programadas
   useEffect(() => {
@@ -120,13 +135,15 @@ export default function AutoNotificationScheduler() {
     // Si es horario personalizado, generar el string de horario
     if (newNotification.schedule === 'custom') {
       const { hour, minute } = newNotification.customTime;
-      const { frequency, weekday } = newNotification;
+      const { frequency, weekday, customDate } = newNotification;
       
       if (frequency === 'daily') {
         scheduleString = `custom_daily_${hour}h${minute}m`;
       } else if (frequency === 'weekly') {
         const weekdayName = weekdayOptions.find(w => w.value === weekday)?.label.toLowerCase();
         scheduleString = `custom_weekly_${weekdayName}_${hour}h${minute}m`;
+      } else if (frequency === 'once') {
+        scheduleString = `custom_once_${customDate}_${hour}h${minute}m`;
       }
     }
 
@@ -150,6 +167,7 @@ export default function AutoNotificationScheduler() {
           config: {
             testRun: newNotification.testRun,
             customTime: newNotification.schedule === 'custom' ? newNotification.customTime : undefined,
+            customDate: newNotification.schedule === 'custom' && newNotification.frequency === 'once' ? newNotification.customDate : undefined,
             frequency: newNotification.schedule === 'custom' ? newNotification.frequency : undefined,
             weekday: newNotification.schedule === 'custom' ? newNotification.weekday : undefined
           }
@@ -166,6 +184,7 @@ export default function AutoNotificationScheduler() {
           type: '', 
           schedule: '', 
           customTime: { hour: 9, minute: 0 },
+          customDate: new Date().toISOString().split('T')[0],
           frequency: 'daily',
           weekday: 1,
           testRun: false 
@@ -385,6 +404,14 @@ export default function AutoNotificationScheduler() {
           const hour = hourMatch ? parseInt(hourMatch[1]) : 0;
           const minute = minuteMatch ? parseInt(minuteMatch[1]) : 0;
           return `${weekdayName} a las ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        } else if (parts.length >= 4 && parts[1] === 'once') {
+          const dateStr = parts[2];
+          const timePart = parts[3]; // "9h30m"
+          const hourMatch = timePart.match(/(\d+)h/);
+          const minuteMatch = timePart.match(/(\d+)m/);
+          const hour = hourMatch ? parseInt(hourMatch[1]) : 0;
+          const minute = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+          return `Única vez: ${dateStr} a las ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         }
       }
       
@@ -419,12 +446,12 @@ export default function AutoNotificationScheduler() {
 
   const getNotificationUrl = (type: string) => {
     switch (type) {
-      case 'warranty_expiring': return '/admin/inventory?filter=warranty_expiring';
-      case 'low_stock': return '/admin/inventory?filter=low_stock';
-      case 'pending_repairs': return '/admin/repairs?status=pending';
-      case 'daily_summary': return '/admin/dashboard';
-      case 'backup_reminder': return '/admin/system';
-      default: return '/admin/dashboard';
+      case 'warranty_expiring': return '/inventory?filter=warranty_expiring';
+      case 'low_stock': return '/inventory?filter=low_stock';
+      case 'pending_repairs': return '/repairs?status=pending';
+      case 'daily_summary': return '/dashboard';
+      case 'backup_reminder': return '/system';
+      default: return '/dashboard';
     }
   };
 
@@ -495,8 +522,8 @@ export default function AutoNotificationScheduler() {
                   >
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography component="span" variant="body2" sx={{ fontWeight: 500 }}>
                             {notification.title}
                           </Typography>
                           <Chip
@@ -508,12 +535,11 @@ export default function AutoNotificationScheduler() {
                         </Box>
                       }
                       secondary={
-                        <Box sx={{ mt: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
+                        <Box component="span" sx={{ mt: 0.5, display: 'block' }}>
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             {getScheduleLabel(notification?.schedule)}
                           </Typography>
-                          <br />
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             Próxima: {notification?.nextRun ? formatNextRun(notification.nextRun) : 'No programada'}
                           </Typography>
                         </Box>
@@ -661,8 +687,38 @@ export default function AutoNotificationScheduler() {
                   </FormControl>
                 )}
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <FormControl size="small" sx={{ minWidth: 80 }}>
+                {newNotification.frequency === 'once' ? (
+                  <LocalizationProvider
+                    dateAdapter={AdapterDateFns}
+                    adapterLocale={es}
+                    localeText={esES.components.MuiLocalizationProvider.defaultProps.localeText}
+                  >
+                    <MobileDateTimePicker
+                      label="Fecha y hora"
+                      value={getCustomDateTimeValue()}
+                      onChange={(value) => {
+                        if (!value || Number.isNaN(value.getTime())) return;
+                        setNewNotification(prev => ({
+                          ...prev,
+                          customDate: format(value, 'yyyy-MM-dd'),
+                          customTime: { hour: value.getHours(), minute: value.getMinutes() }
+                        }));
+                      }}
+                      ampm={false}
+                      format="dd/MM/yyyy HH:mm"
+                      minDateTime={new Date()}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          size: 'small',
+                          helperText: 'Selecciona la fecha y hora exactas de envío',
+                        }
+                      }}
+                    />
+                  </LocalizationProvider>
+                ) : (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  <FormControl size="small" sx={{ minWidth: 110, flex: 1 }}>
                     <InputLabel>Hora</InputLabel>
                     <Select
                       value={newNotification.customTime.hour}
@@ -680,7 +736,7 @@ export default function AutoNotificationScheduler() {
                     </Select>
                   </FormControl>
 
-                  <FormControl size="small" sx={{ minWidth: 80 }}>
+                  <FormControl size="small" sx={{ minWidth: 110, flex: 1 }}>
                     <InputLabel>Minutos</InputLabel>
                     <Select
                       value={newNotification.customTime.minute}
@@ -697,13 +753,16 @@ export default function AutoNotificationScheduler() {
                       ))}
                     </Select>
                   </FormControl>
-                </Box>
+                  </Box>
+                )}
 
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <Icon icon="eva:info-outline" width={14} />
                   {newNotification.frequency === 'daily' 
                     ? `Se ejecutará todos los días a las ${newNotification.customTime.hour.toString().padStart(2, '0')}:${newNotification.customTime.minute.toString().padStart(2, '0')}`
-                    : `Se ejecutará cada ${weekdayOptions.find(w => w.value === newNotification.weekday)?.label} a las ${newNotification.customTime.hour.toString().padStart(2, '0')}:${newNotification.customTime.minute.toString().padStart(2, '0')}`
+                    : newNotification.frequency === 'weekly'
+                    ? `Se ejecutará cada ${weekdayOptions.find(w => w.value === newNotification.weekday)?.label} a las ${newNotification.customTime.hour.toString().padStart(2, '0')}:${newNotification.customTime.minute.toString().padStart(2, '0')}`
+                    : `Se ejecutará una sola vez el ${newNotification.customDate} a las ${newNotification.customTime.hour.toString().padStart(2, '0')}:${newNotification.customTime.minute.toString().padStart(2, '0')}`
                   }
                 </Typography>
               </Box>

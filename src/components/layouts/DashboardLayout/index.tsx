@@ -25,6 +25,7 @@ import { authService } from '@/services/auth.service';
 import SidebarItems from "./SidebarItems";
 import { useAuth } from "@/hooks/useAuth";
 import BranchSelector from "./BranchSelector";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 const DRAWER_WIDTH = 280;
 const APPBAR_MOBILE = 64;
@@ -130,6 +131,8 @@ export default function DashboardLayout({
             alignItems="center"
             spacing={{ xs: 0.5, sm: 1.5 }}
           >
+            <NotificationBell />
+
             <IconButton
               onClick={handleUserMenuOpen}
               sx={{ p: 0 }}

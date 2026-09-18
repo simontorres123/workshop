@@ -10,6 +10,7 @@ import {
   CardContent,
   CardHeader,
   Alert,
+  Snackbar,
   Stack,
   FormControl,
   InputLabel,
@@ -20,6 +21,7 @@ import { LoadingButton } from '@mui/lab';
 import { Icon } from '@iconify/react';
 import { RepairOrder, CreateRepairOrderRequest } from '@/types/repair';
 import { useRepairOrders } from '@/hooks/useRepairOrders';
+import { useAuthStore } from '@/store/auth.store';
 import ImageUpload from '@/components/ui/ImageUpload';
 import { ImageMetadata } from '@/types';
 
@@ -59,6 +61,16 @@ const deviceBrands = [
   'Otro'
 ];
 
+const validationFieldLabels: Record<string, string> = {
+  clientName: 'Nombre completo',
+  clientPhone: 'Teléfono',
+  deviceType: 'Tipo de dispositivo',
+  deviceBrand: 'Marca',
+  deviceDescription: 'Descripción del dispositivo',
+  problemDescription: 'Descripción del problema',
+  initialDiagnosis: 'Diagnóstico inicial',
+};
+
 export default function RepairOrderForm({ 
   order, 
   onSave, 
@@ -66,6 +78,7 @@ export default function RepairOrderForm({
   loading = false 
 }: RepairOrderFormProps) {
   const { createOrder, updateOrder } = useRepairOrders();
+  const { activeBranchId } = useAuthStore();
   const [formData, setFormData] = useState<CreateRepairOrderRequest>({
     clientName: order?.clientName || '',
     clientPhone: order?.clientPhone || '',
@@ -81,11 +94,13 @@ export default function RepairOrderForm({
     storagePeriodMonths: order?.storagePeriodMonths || 1,
     totalCost: order?.totalCost || undefined,
     clientId: order?.clientId,
+    branchId: order?.branchId || activeBranchId || undefined,
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>('');
   const [images, setImages] = useState<ImageMetadata[]>([]);
+  const [validationToastOpen, setValidationToastOpen] = useState(false);
 
   // Inicializar imágenes si estamos editando una orden existente
   useEffect(() => {
@@ -109,11 +124,11 @@ export default function RepairOrderForm({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.clientName.trim()) {
+    if (!formData.clientName?.trim()) {
       newErrors.clientName = 'El nombre del cliente es obligatorio';
     }
 
-    if (!formData.clientPhone.trim()) {
+    if (!formData.clientPhone?.trim()) {
       newErrors.clientPhone = 'El teléfono es obligatorio';
     } else if (formData.clientPhone.length < 10) {
       newErrors.clientPhone = 'El teléfono debe tener al menos 10 dígitos';
@@ -123,28 +138,44 @@ export default function RepairOrderForm({
       newErrors.deviceType = 'El tipo de dispositivo es obligatorio';
     }
 
-    if (!formData.deviceBrand.trim()) {
+    if (!formData.deviceBrand?.trim()) {
       newErrors.deviceBrand = 'La marca es obligatoria';
     }
 
-    if (!formData.deviceDescription.trim()) {
+    if (!formData.deviceDescription?.trim()) {
       newErrors.deviceDescription = 'La descripción del dispositivo es obligatoria';
     } else if (formData.deviceDescription.length < 10) {
       newErrors.deviceDescription = 'La descripción debe tener al menos 10 caracteres';
     }
 
-    if (!formData.problemDescription.trim()) {
+    if (!formData.problemDescription?.trim()) {
       newErrors.problemDescription = 'La descripción del problema es obligatoria';
     } else if (formData.problemDescription.length < 10) {
       newErrors.problemDescription = 'La descripción del problema debe tener al menos 10 caracteres';
     }
 
-    if (!formData.initialDiagnosis.trim()) {
+    if (!formData.initialDiagnosis?.trim()) {
       newErrors.initialDiagnosis = 'El diagnóstico inicial es obligatorio';
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    const isValid = Object.keys(newErrors).length === 0;
+    if (!isValid) {
+      const firstError = Object.keys(newErrors)[0];
+      setSubmitError('');
+      setValidationToastOpen(true);
+
+      window.setTimeout(() => {
+        const field = document.querySelector<HTMLElement>(`[data-validation-field="${firstError}"]`);
+        const summary = document.querySelector<HTMLElement>('[data-validation-summary]');
+        summary?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const input = field?.querySelector<HTMLElement>('input, textarea, [role="combobox"]');
+        input?.focus({ preventScroll: true });
+      }, 0);
+    }
+    
+    return isValid;
   };
 
   const handleChange = (field: keyof CreateRepairOrderRequest) => (
@@ -163,15 +194,16 @@ export default function RepairOrderForm({
     }
   };
 
+  const validationErrors = Object.entries(errors).filter(([, message]) => Boolean(message));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+    setSubmitError('');
     try {
-      // Incluir las URLs de las imágenes en los datos del formulario
-      // Al editar, mantener todas las imágenes (existentes + nuevas)
       const allImageUrls = images.map(image => image.url);
       
       const orderData = {
@@ -180,15 +212,15 @@ export default function RepairOrderForm({
       };
 
       if (order) {
-        // Actualizar orden existente
         await updateOrder(order.id, orderData);
       } else {
-        // Crear nueva orden
         await createOrder(orderData);
       }
       onSave(orderData);
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Error al guardar la orden';
       console.error('Error saving repair order:', error);
+      setSubmitError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -197,6 +229,60 @@ export default function RepairOrderForm({
   return (
     <Box component="form" onSubmit={handleSubmit}>
       <Stack spacing={2.5}>
+        {/* Error de envío */}
+        {submitError && (
+          <Alert severity="error" onClose={() => setSubmitError('')}>
+            {submitError}
+          </Alert>
+        )}
+        {validationErrors.length > 0 && (
+          <Alert
+            data-validation-summary
+            severity="warning"
+            icon={<Icon icon="eva:alert-triangle-outline" />}
+            sx={{ alignItems: 'flex-start', '& .MuiAlert-message': { width: '100%', minWidth: 0 } }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              Revisa la información antes de continuar
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              Hay {validationErrors.length} {validationErrors.length === 1 ? 'campo pendiente' : 'campos pendientes'}.
+            </Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2 }}>
+              {validationErrors.map(([field, message]) => (
+                <Box component="li" key={field}>
+                  <Button
+                    type="button"
+                    size="small"
+                    color="inherit"
+                    onClick={() => {
+                      const target = document.querySelector<HTMLElement>(`[data-validation-field="${field}"]`);
+                      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      target?.querySelector<HTMLElement>('input, textarea, [role="combobox"]')?.focus();
+                    }}
+                    sx={{
+                      display: 'block',
+                      width: '100%',
+                      p: 0,
+                      mb: 0.75,
+                      minWidth: 0,
+                      textTransform: 'none',
+                      textAlign: 'left',
+                      justifyContent: 'flex-start',
+                      alignItems: 'flex-start',
+                      fontWeight: 600,
+                      lineHeight: 1.45,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {validationFieldLabels[field] || field}: {message}
+                  </Button>
+                </Box>
+              ))}
+            </Box>
+          </Alert>
+        )}
         {/* Información del Cliente */}
         <Card variant="outlined">
           <CardHeader
@@ -211,6 +297,7 @@ export default function RepairOrderForm({
             <Stack spacing={2.5}>
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                 <TextField
+                  data-validation-field="clientName"
                   fullWidth
                   label="Nombre Completo *"
                   value={formData.clientName}
@@ -220,6 +307,7 @@ export default function RepairOrderForm({
                   disabled={loading || isSubmitting}
                 />
                 <TextField
+                  data-validation-field="clientPhone"
                   fullWidth
                   label="Teléfono *"
                   value={formData.clientPhone}
@@ -258,7 +346,7 @@ export default function RepairOrderForm({
           <CardContent sx={{ pt: 0 }}>
             <Stack spacing={3}>
               <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-                <FormControl fullWidth error={!!errors.deviceType} size="medium">
+                <FormControl data-validation-field="deviceType" fullWidth error={!!errors.deviceType} size="medium">
                   <InputLabel>Tipo de Dispositivo *</InputLabel>
                   <Select
                     value={formData.deviceType}
@@ -278,7 +366,7 @@ export default function RepairOrderForm({
                     </Typography>
                   )}
                 </FormControl>
-                <FormControl fullWidth error={!!errors.deviceBrand} size="medium">
+                <FormControl data-validation-field="deviceBrand" fullWidth error={!!errors.deviceBrand} size="medium">
                   <InputLabel>Marca *</InputLabel>
                   <Select
                     value={formData.deviceBrand}
@@ -317,6 +405,7 @@ export default function RepairOrderForm({
                 />
               </Box>
               <TextField
+                data-validation-field="deviceDescription"
                 fullWidth
                 label="Descripción del Dispositivo *"
                 multiline
@@ -345,6 +434,7 @@ export default function RepairOrderForm({
           <CardContent sx={{ pt: 0 }}>
             <Stack spacing={2.5}>
               <TextField
+                data-validation-field="problemDescription"
                 fullWidth
                 label="Descripción del Problema *"
                 multiline
@@ -357,6 +447,7 @@ export default function RepairOrderForm({
                 placeholder="Ej: La lavadora no enciende al presionar el botón de poder, no hay luces ni sonidos"
               />
               <TextField
+                data-validation-field="initialDiagnosis"
                 fullWidth
                 label="Diagnóstico Inicial *"
                 multiline
@@ -500,6 +591,22 @@ export default function RepairOrderForm({
           </LoadingButton>
         </Box>
       </Stack>
+      <Snackbar
+        open={validationToastOpen}
+        autoHideDuration={6000}
+        onClose={() => setValidationToastOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          severity="warning"
+          variant="filled"
+          onClose={() => setValidationToastOpen(false)}
+          icon={<Icon icon="eva:alert-triangle-outline" />}
+          sx={{ width: '100%' }}
+        >
+          No se puede guardar: completa los {validationErrors.length} {validationErrors.length === 1 ? 'dato obligatorio' : 'datos obligatorios'}.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

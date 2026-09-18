@@ -134,6 +134,34 @@ export class SupabaseClientRepository {
   }
 
   /**
+   * Buscar cliente por teléfono
+   */
+  async findByPhone(phone: string): Promise<Client | null> {
+    try {
+      const orgId = useAuthStore.getState().getOrganizationId();
+      // Si no hay orgId en el store (servidor), buscar sin filtro de org
+      const query = supabase
+        .from('clients')
+        .select('*')
+        .eq('phone', phone)
+        .limit(1);
+      
+      if (orgId) {
+        const { data, error } = await query.eq('organization_id', orgId);
+        if (error) throw error;
+        return data?.[0] ? this.mapToLocal(data[0]) : null;
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data?.[0] ? this.mapToLocal(data[0]) : null;
+    } catch (error) {
+      console.error(`Error finding client by phone ${phone}:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Buscar con filtros restringido a la organización
    */
   async search(filters: ClientSearchFilters): Promise<Client[]> {

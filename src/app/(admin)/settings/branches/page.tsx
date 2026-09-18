@@ -5,7 +5,7 @@ import {
   Box, Container, Typography, Button, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Chip, CircularProgress, Alert, Snackbar, Card,
-  useMediaQuery, useTheme,
+  useMediaQuery, useTheme, Fade, Grow,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { Icon } from '@iconify/react';
@@ -173,8 +173,8 @@ export default function BranchesPage() {
         <Chip
           label={params.value ? 'Matriz' : 'Sucursal'}
           color={params.value ? 'primary' : 'default'}
-          variant="outlined"
           size="small"
+          sx={{ fontWeight: 'bold' }}
         />
       ),
     },
@@ -188,6 +188,7 @@ export default function BranchesPage() {
             label={params.value ? 'Activa' : 'Inactiva'}
             color={params.value ? 'success' : 'default'}
             size="small"
+            sx={{ fontWeight: 'bold' }}
           />
         ),
       } as GridColDef,
@@ -229,45 +230,78 @@ export default function BranchesPage() {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ py: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 4 }}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold">Gestión de Sucursales</Typography>
-            <Typography variant="body1" color="text.secondary">
-              Administra las sucursales de tu taller
-            </Typography>
+      <Box sx={{ py: { xs: 3, md: 5 } }}>
+        <Fade in timeout={600}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 4 }}>
+            <Box>
+              <Typography 
+                variant="h3" 
+                fontWeight="800"
+                color="primary.main"
+                sx={{ mb: 0.5, display: 'inline-block' }}
+              >
+                Gestión de Sucursales
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
+                Administra las sucursales de tu taller
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Icon icon="eva:plus-outline" />}
+              sx={{ 
+                borderRadius: 2, 
+                flexShrink: 0,
+                px: 4,
+                boxShadow: '0 8px 16px -8px rgba(0, 167, 111, 0.5)',
+                '&:hover': {
+                  boxShadow: '0 12px 20px -8px rgba(0, 167, 111, 0.6)',
+                }
+              }}
+              onClick={openCreateDialog}
+              fullWidth={isMobile}
+            >
+              Nueva Sucursal
+            </Button>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Icon icon="eva:plus-outline" />}
-            sx={{ borderRadius: 2, flexShrink: 0 }}
-            onClick={openCreateDialog}
-            fullWidth={isMobile}
-          >
-            Nueva Sucursal
-          </Button>
-        </Box>
+        </Fade>
 
         {error && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>{error}</Alert>}
 
-        <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-          <DataGrid
-            rows={branches}
-            columns={columns}
-            loading={loading}
-            autoHeight
-            disableRowSelectionOnClick
-            initialState={{
-              pagination: { paginationModel: { page: 0, pageSize: 10 } },
+        <Grow in timeout={800}>
+          <Card 
+            elevation={0} 
+            sx={{ 
+              border: '1px solid', 
+              borderColor: 'divider', 
+              borderRadius: 4,
+              background: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              transition: 'box-shadow 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 24px -10px rgba(0,0,0,0.1)',
+              }
             }}
-            pageSizeOptions={[5, 10, 25]}
-            sx={{
-              border: 'none',
-              '& .MuiDataGrid-columnHeaders': { bgcolor: 'grey.50' },
-              '& .MuiDataGrid-cell': { py: 1 },
-            }}
-          />
-        </Card>
+          >
+            <DataGrid
+              rows={branches}
+              columns={columns}
+              loading={loading}
+              autoHeight
+              disableRowSelectionOnClick
+              initialState={{
+                pagination: { paginationModel: { page: 0, pageSize: 10 } },
+              }}
+              pageSizeOptions={[5, 10, 25]}
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-columnHeaders': { bgcolor: 'grey.50' },
+                '& .MuiDataGrid-cell': { py: 1 },
+              }}
+            />
+          </Card>
+        </Grow>
 
         {/* Dialog Crear / Editar */}
         <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm" fullScreen={isMobile}>

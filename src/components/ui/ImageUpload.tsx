@@ -253,10 +253,7 @@ export default function ImageUpload({
       {/* Error Messages */}
       {(localError || uploadError) && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          {uploadError?.includes('Azure Blob Storage is not properly configured') 
-            ? 'Azure Blob Storage no está configurado. Verifica las variables de entorno AZURE_STORAGE_* en .env.local'
-            : (localError || uploadError)
-          }
+          {localError || uploadError}
         </Alert>
       )}
 
@@ -265,7 +262,7 @@ export default function ImageUpload({
         <Box sx={{ mt: 2 }}>
           <LinearProgress />
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-            Subiendo imágenes a Azure...
+            Subiendo imágenes...
           </Typography>
         </Box>
       )}
@@ -293,7 +290,7 @@ export default function ImageUpload({
           
           <Grid container spacing={2}>
             {localImages.map((image) => (
-              <Grid item xs={6} sm={4} md={3} key={image.id}>
+              <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
                 <Card sx={{ position: 'relative' }}>
                   {!autoUpload && (
                     <Box
@@ -310,7 +307,7 @@ export default function ImageUpload({
                         zIndex: 1
                       }}
                     >
-                      Local
+                      Pendiente
                     </Box>
                   )}
                   
@@ -321,7 +318,8 @@ export default function ImageUpload({
                       alt="Preview"
                       sx={{
                         width: '100%',
-                        height: 120,
+                        aspectRatio: '4 / 3',
+                        height: 'auto',
                         objectFit: 'cover',
                         display: 'block'
                       }}
@@ -375,8 +373,8 @@ export default function ImageUpload({
           
           <Grid container spacing={2}>
             {uploadedImages.map((image) => (
-              <Grid item xs={6} sm={4} md={3} key={image._id}>
-                <Card>
+              <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image._id}>
+                <Card sx={{ position: 'relative', overflow: 'hidden' }}>
                   <Box
                     sx={{
                       position: 'absolute',
@@ -401,7 +399,8 @@ export default function ImageUpload({
                       alt={image.originalName}
                       sx={{
                         width: '100%',
-                        height: 120,
+                        aspectRatio: '4 / 3',
+                        height: 'auto',
                         objectFit: 'cover',
                         display: 'block'
                       }}

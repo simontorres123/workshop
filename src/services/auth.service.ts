@@ -1,7 +1,11 @@
 import { supabase } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
 
-export type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
+export type UserProfile = Database['public']['Tables']['user_profiles']['Row'] & {
+  assignedBranches?: string[];
+  organizations?: any;
+  branches?: any;
+};
 
 export const authService = {
   /**
@@ -70,7 +74,7 @@ export const authService = {
   getUserProfile: async (userId: string): Promise<UserProfile | null> => {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*, organizations(*), branches(*)')
+      .select('*, organizations(*), user_branches(branch_id, branches(*))')
       .eq('id', userId)
       .single();
 
@@ -78,7 +82,16 @@ export const authService = {
       console.error('Error fetching user profile:', error);
       return null;
     }
-    return data as any;
+    
+    const profile = data as any;
+    const branchesData = profile.user_branches || [];
+    
+    return {
+      ...profile,
+      assignedBranches: branchesData.map((b: any) => b.branch_id),
+      branches: branchesData.length > 0 ? branchesData[0].branches : null,
+      branch_id: branchesData.length > 0 ? branchesData[0].branch_id : null
+    } as UserProfile;
   },
 
   /**

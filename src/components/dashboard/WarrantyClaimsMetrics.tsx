@@ -35,6 +35,7 @@ import { Icon } from '@iconify/react';
 import { RepairOrder, WarrantyClaim } from '@/types/repair';
 import { format, formatDistanceToNow, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useAuthStore } from '@/store/auth.store';
 
 interface WarrantyMetrics {
   totalOrders: number;
@@ -78,9 +79,11 @@ export default function WarrantyClaimsMetrics({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
 
+  const { activeBranchId } = useAuthStore();
+
   useEffect(() => {
     fetchWarrantyMetrics();
-  }, [dateRange]);
+  }, [dateRange, activeBranchId]);
 
   const fetchWarrantyMetrics = async () => {
     try {
@@ -93,6 +96,9 @@ export default function WarrantyClaimsMetrics({
       }
       if (dateRange?.to) {
         searchParams.set('dateTo', dateRange.to.toISOString());
+      }
+      if (activeBranchId) {
+        searchParams.set('branchId', activeBranchId);
       }
 
       const response = await fetch(`/api/warranty/metrics?${searchParams.toString()}`);
@@ -390,10 +396,12 @@ export default function WarrantyClaimsMetrics({
                       />
                     </ListItemIcon>
                     <ListItemText
+                      primaryTypographyProps={{ component: 'div' }}
+                      secondaryTypographyProps={{ component: 'div' }}
                       primary={item.reason}
                       secondary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="caption">
+                          <Typography variant="caption" component="span">
                             {item.count} casos ({(item.percentage || 0).toFixed(1)}%)
                           </Typography>
                           <LinearProgress
@@ -432,6 +440,8 @@ export default function WarrantyClaimsMetrics({
                           />
                         </ListItemIcon>
                         <ListItemText
+                          primaryTypographyProps={{ component: 'div' }}
+                          secondaryTypographyProps={{ component: 'div' }}
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                               <Typography variant="subtitle2">

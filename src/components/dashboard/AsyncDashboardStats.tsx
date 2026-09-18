@@ -3,6 +3,7 @@ import Grid from '@mui/material/Grid';
 import { StatCardSkeleton } from '@/components/ui/SkeletonLoader';
 import StatCard from '@/components/ui/StatCard';
 import { Icon } from '@iconify/react';
+import { useAuthStore } from '@/store/auth.store';
 
 interface DashboardStats {
   totalOrders: number;
@@ -16,15 +17,24 @@ const AsyncDashboardStats: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { activeBranchId } = useAuthStore();
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        // Construir URL
+        const url = new URL('/api/repair-orders', window.location.origin);
+        url.searchParams.append('includeAll', 'true');
+        if (activeBranchId) {
+          url.searchParams.append('branchId', activeBranchId);
+        }
+
         // Simular delay mínimo para mostrar skeleton
         const [response] = await Promise.all([
-          fetch('/api/repair-orders?includeAll=true'),
+          fetch(url.toString()),
           new Promise(resolve => setTimeout(resolve, 500)) // Mínimo 500ms para smooth UX
         ]);
 
@@ -62,7 +72,7 @@ const AsyncDashboardStats: React.FC = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [activeBranchId]);
 
   if (loading) {
     return (

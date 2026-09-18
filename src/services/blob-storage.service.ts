@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { ImageMetadata } from '@/types';
 
@@ -40,8 +40,8 @@ class BlobStorageService {
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = folder ? `${folder}/${fileName}` : fileName;
 
-      // Subir a Supabase
-      const { data, error } = await supabase.storage
+      // Subir a Supabase (usando service role para evitar restricciones de RLS en Storage)
+      const { data, error } = await supabaseAdmin.storage
         .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -51,7 +51,7 @@ class BlobStorageService {
       if (error) throw error;
 
       // Obtener la URL pública
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = supabaseAdmin.storage
         .from(bucketName)
         .getPublicUrl(data.path);
 
@@ -114,7 +114,7 @@ class BlobStorageService {
    */
   async deleteImage(path: string, bucketName: string = this.DEFAULT_BUCKET): Promise<DeleteResult> {
     try {
-      const { error } = await supabase.storage
+      const { error } = await supabaseAdmin.storage
         .from(bucketName)
         .remove([path]);
 

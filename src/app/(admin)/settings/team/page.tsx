@@ -21,6 +21,12 @@ import {
   Snackbar,
   useMediaQuery,
   useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  Stack,
+  Fade,
+  Grow,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { Icon } from '@iconify/react';
@@ -52,6 +58,11 @@ export default function UsersManagementPage() {
   // States for Edit Dialog
   const [editUser, setEditUser] = useState<any | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  // States for Delete
+  const [deleteUser, setDeleteUser] = useState<any | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -112,12 +123,12 @@ export default function UsersManagementPage() {
       await userService.inviteTeamMember({
         ...newMember,
         organizationId: profile!.organization_id!,
-        branchId: newMember.branchId || null
+        branchIds: newMember.branchIds || []
       });
 
       setSuccessMsg('Miembro invitado exitosamente');
       setInviteDialogOpen(false);
-      setNewMember({ email: '', password: '', fullName: '', role: 'technician', branchId: '' });
+      setNewMember({ email: '', password: '', fullName: '', role: 'technician', branchIds: [] });
       loadUsers();
     } catch (err: any) {
       setError(err.message);
@@ -131,13 +142,28 @@ export default function UsersManagementPage() {
       await userService.updateUser(editUser.id, {
         role: editUser.role,
         full_name: editUser.full_name,
-        branch_id: editUser.branch_id || null
+        branchIds: editUser.branchIds || []
       });
       setEditDialogOpen(false);
       setSuccessMsg('Usuario actualizado');
       loadUsers();
     } catch (err: any) {
       setError('Error al actualizar: ' + err.message);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return;
+    try {
+      setDeleting(true);
+      await userService.deleteProfile(deleteUser.id);
+      setDeleteDialogOpen(false);
+      setSuccessMsg('Usuario eliminado exitosamente');
+      loadUsers();
+    } catch (err: any) {
+      setError('Error al eliminar usuario: ' + err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -149,7 +175,7 @@ export default function UsersManagementPage() {
       'technician': { label: 'Técnico', color: 'success' }
     };
     const config = roles[role] || { label: role, color: 'default' };
-    return <Chip label={config.label} color={config.color} size="small" variant="outlined" />;
+    return <Chip label={config.label} color={config.color} size="small" sx={{ fontWeight: 'bold' }} />;
   };
 
   const columns: GridColDef[] = [
@@ -160,11 +186,20 @@ export default function UsersManagementPage() {
       minWidth: 180,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: 14 }}>
-            {params.value?.charAt(0) || 'U'}
+          <Avatar sx={{ 
+            bgcolor: 'primary.light', 
+            color: 'primary.darker',
+            width: 36, 
+            height: 36, 
+            fontSize: 16,
+            fontWeight: 'bold',
+            border: '2px solid white',
+            boxShadow: '0 2px 8px -2px rgba(0,0,0,0.1)'
+          }}>
+            {params.value?.charAt(0)?.toUpperCase() || 'U'}
           </Avatar>
           <Box>
-            <Typography variant="subtitle2" noWrap>{params.value || 'Sin nombre'}</Typography>
+            <Typography variant="subtitle2" fontWeight="700" noWrap>{params.value || 'Sin nombre'}</Typography>
           </Box>
         </Box>
       ),
@@ -177,11 +212,24 @@ export default function UsersManagementPage() {
     },
     ...(!isMobile ? [
       {
-        field: 'branches',
-        headerName: 'Sucursal',
+        field: 'all_branches',
+        headerName: 'Sucursales',
         flex: 1,
         minWidth: 150,
-        valueGetter: (value: any) => value?.name || 'Acceso Global',
+        renderCell: (params) => {
+          if (params.row.role === 'org_admin' || params.row.role === 'super_admin') {
+            return <Typography variant="body2" color="text.secondary">Global</Typography>;
+          }
+          const branches = params.value || [];
+          if (branches.length === 0) return <Typography variant="body2" color="text.secondary">Sin asignar</Typography>;
+          return (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', my: 1 }}>
+              {branches.map((b: any) => (
+                <Chip key={b.id} label={b.name} size="small" variant="outlined" />
+              ))}
+            </Box>
+          );
+        }
       } as GridColDef,
       {
         field: 'created_at',
@@ -201,7 +249,19 @@ export default function UsersManagementPage() {
           key="edit"
           icon={<Icon icon="eva:edit-2-outline" width={20} />}
           label="Editar"
-          onClick={() => { setEditUser(params.row); setEditDialogOpen(true); }}
+          onClick={() => { 
+            setEditUser({ 
+              ...params.row, 
+              branchIds: params.row.assignedBranches || [] 
+            }); 
+            setEditDialogOpen(true); 
+          }}
+        />,
+        <GridActionsCellItem
+          key="delete"
+          icon={<Icon icon="eva:trash-2-outline" width={20} color="error" />}
+          label="Eliminar"
+          onClick={() => { setDeleteUser(params.row); setDeleteDialogOpen(true); }}
         />,
       ],
     },
@@ -211,29 +271,61 @@ export default function UsersManagementPage() {
 
   return (
     <Container maxWidth="xl">
-      <Box sx={{ py: 3 }}>
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold">Gestión de Equipo</Typography>
-            <Typography variant="body1" color="text.secondary">
-              Administra los técnicos y administradores de tu taller
-            </Typography>
+      <Box sx={{ py: { xs: 3, md: 5 } }}>
+        <Fade in timeout={600}>
+          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography 
+                variant="h3" 
+                fontWeight="800"
+                color="primary.main"
+                sx={{ mb: 0.5, display: 'inline-block' }}
+              >
+                Gestión de Equipo
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
+                Administra los técnicos y administradores de tu taller
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Icon icon="eva:person-add-outline" />}
+              sx={{ 
+                borderRadius: 2, 
+                flexShrink: 0,
+                px: 4,
+                boxShadow: '0 8px 16px -8px rgba(0, 167, 111, 0.5)',
+                '&:hover': {
+                  boxShadow: '0 12px 20px -8px rgba(0, 167, 111, 0.6)',
+                }
+              }}
+              onClick={() => setInviteDialogOpen(true)}
+              fullWidth={isMobile}
+            >
+              Nuevo Miembro
+            </Button>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Icon icon="eva:person-add-outline" />}
-            sx={{ borderRadius: 2, flexShrink: 0 }}
-            onClick={() => setInviteDialogOpen(true)}
-            fullWidth={isMobile}
-          >
-            Nuevo Miembro
-          </Button>
-        </Box>
+        </Fade>
 
         {error && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>{error}</Alert>}
 
-        <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-          <DataGrid
+        <Grow in timeout={800}>
+          <Card 
+            elevation={0} 
+            sx={{ 
+              border: '1px solid', 
+              borderColor: 'divider', 
+              borderRadius: 4,
+              background: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              transition: 'box-shadow 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 24px -10px rgba(0,0,0,0.1)',
+              }
+            }}
+          >
+            <DataGrid
             rows={users}
             columns={columns}
             loading={loading}
@@ -250,6 +342,7 @@ export default function UsersManagementPage() {
             }}
           />
         </Card>
+        </Grow>
 
         {/* Invite Dialog */}
         <Dialog
@@ -296,18 +389,30 @@ export default function UsersManagementPage() {
                 <MenuItem value="branch_admin">Admin Sucursal</MenuItem>
                 <MenuItem value="technician">Técnico</MenuItem>
               </TextField>
-              <TextField
-                fullWidth
-                select
-                label="Sucursal Asignada"
-                value={newMember.branchId}
-                onChange={(e) => setNewMember({ ...newMember, branchId: e.target.value })}
-              >
-                <MenuItem value="">Acceso Global</MenuItem>
-                {branches.map((b) => (
-                  <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
-                ))}
-              </TextField>
+              <FormControl fullWidth>
+                <InputLabel>Sucursales Asignadas</InputLabel>
+                <Select
+                  multiple
+                  value={newMember.branchIds || []}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewMember({ ...newMember, branchIds: typeof val === 'string' ? val.split(',') : val });
+                  }}
+                  label="Sucursales Asignadas"
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {(selected as string[]).map((value) => {
+                        const branch = branches.find(b => b.id === value);
+                        return <Chip key={value} label={branch?.name || value} size="small" />;
+                      })}
+                    </Box>
+                  )}
+                >
+                  {branches.map((b) => (
+                    <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
@@ -352,24 +457,61 @@ export default function UsersManagementPage() {
                   <MenuItem value="branch_admin">Admin Sucursal</MenuItem>
                   <MenuItem value="technician">Técnico</MenuItem>
                 </TextField>
-                <TextField
-                  fullWidth
-                  select
-                  label="Sucursal"
-                  value={editUser.branch_id || ''}
-                  onChange={(e) => setEditUser({ ...editUser, branch_id: e.target.value })}
-                >
-                  <MenuItem value="">Acceso Global</MenuItem>
-                  {branches.map((b) => (
-                    <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth>
+                  <InputLabel>Sucursales Asignadas</InputLabel>
+                  <Select
+                    multiple
+                    value={editUser.branchIds || []}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditUser({ ...editUser, branchIds: typeof val === 'string' ? val.split(',') : val });
+                    }}
+                    label="Sucursales Asignadas"
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {(selected as string[]).map((value) => {
+                          const branch = branches.find(b => b.id === value);
+                          return <Chip key={value} label={branch?.name || value} size="small" />;
+                        })}
+                      </Box>
+                    )}
+                  >
+                    {branches.map((b) => (
+                      <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
             )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
             <Button onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
             <Button variant="contained" onClick={handleUpdateUser}>Guardar Cambios</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Dialog */}
+        <Dialog open={deleteDialogOpen} onClose={() => !deleting && setDeleteDialogOpen(false)}>
+          <DialogTitle sx={{ fontWeight: 'bold' }}>Eliminar Usuario</DialogTitle>
+          <DialogContent>
+            <Typography>
+              ¿Estás seguro de que deseas eliminar a <strong>{deleteUser?.full_name}</strong>?
+              Esta acción eliminará su cuenta de acceso y no se puede deshacer.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="contained" 
+              color="error" 
+              onClick={handleDeleteUser} 
+              disabled={deleting}
+              startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Icon icon="eva:trash-2-outline" />}
+            >
+              Eliminar
+            </Button>
           </DialogActions>
         </Dialog>
 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
-
-const repairOrderRepository = RepositoryFactory.getRepairOrders();
+import { getTenantContext } from '../../route';
 
 export async function PATCH(
   request: NextRequest,
@@ -11,8 +10,6 @@ export async function PATCH(
     const { id } = await params;
     const { status, note } = await request.json();
 
-    // Updating repair order status
-
     if (!status) {
       return NextResponse.json(
         { success: false, error: 'Estado es requerido' },
@@ -20,7 +17,6 @@ export async function PATCH(
       );
     }
 
-    // Validar que el estado sea válido
     const validStatuses = [
       'pending_diagnosis',
       'diagnosis_confirmed', 
@@ -37,9 +33,10 @@ export async function PATCH(
       );
     }
 
+    const ctx = await getTenantContext(request);
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
+
     const updatedOrder = await repairOrderRepository.updateStatus(id, status, note);
-    
-    // Status updated successfully
     
     return NextResponse.json({
       success: true,

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { UpdateRepairOrderRequest } from '@/types/repair';
 import { blobStorageService } from '@/services/blob-storage.service';
-
-const repairOrderRepository = RepositoryFactory.getRepairOrders();
+import { getTenantContext } from '../route';
 
 export async function GET(
   request: NextRequest,
@@ -11,6 +10,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const ctx = await getTenantContext(request);
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
     
     const order = await repairOrderRepository.findById(id);
     
@@ -40,10 +41,10 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const ctx = await getTenantContext(request);
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
     const body = await request.json();
     const updateData: UpdateRepairOrderRequest = body;
-
-    // Updating repair order
 
     const updatedOrder = await repairOrderRepository.update(id, updateData);
     
@@ -66,8 +67,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    
-    // Deleting repair order
+    const ctx = await getTenantContext(request);
+    const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
     
     // Primero obtener la orden para acceder a las imágenes
     const order = await repairOrderRepository.findById(id);
@@ -81,36 +82,22 @@ export async function DELETE(
     
     // Eliminar imágenes asociadas si existen
     if (order.images && order.images.length > 0) {
-      // Deleting associated images
-      
-      // Extraer los nombres de blob de las URLs
       const blobNames = order.images.map(imageUrl => {
-        // URL format: /api/images/repair-images/blobName.ext
-        // o /api/images/repair-images/folder/blobName.ext (con carpeta)
         const parts = imageUrl.split('/');
-        
-        // Encontrar el índice de 'repair-images' y tomar todo lo que sigue
         const containerIndex = parts.findIndex(part => part === 'repair-images');
         if (containerIndex !== -1 && containerIndex < parts.length - 1) {
-          // Unir todas las partes después del container (puede incluir carpetas)
           return parts.slice(containerIndex + 1).join('/');
         }
-        
         return null;
-      }).filter(Boolean);
-      
-      // Processing image deletions
+      }).filter(Boolean) as string[];
       
       if (blobNames.length > 0) {
-        const deleteResult = await blobStorageService.deleteMultipleImages(
-          blobNames,
-          'repair-images'
-        );
-        
-        // Images deletion completed
-        
-        if (deleteResult.failed.length > 0) {
-          console.warn('⚠️ Algunas imágenes no se pudieron eliminar:', deleteResult.failed);
+        try {
+          await Promise.all(
+            blobNames.map(path => blobStorageService.deleteImage(path, 'repair-images'))
+          );
+        } catch (imgError) {
+          console.warn('Algunas imágenes no se pudieron eliminar:', imgError);
         }
       }
     }
@@ -124,8 +111,6 @@ export async function DELETE(
         { status: 500 }
       );
     }
-    
-    // Repair order deleted successfully
     
     return NextResponse.json({
       success: true,

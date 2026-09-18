@@ -18,9 +18,10 @@ type DBRepairWithRelations = DBRepairOrder & {
 };
 
 export interface TenantContext {
-  organizationId: string | null;
-  branchId?: string | null;
-  role?: string | null;
+  organizationId: string;
+  branchId: string | null;
+  assignedBranches?: string[];
+  role: string | null;
 }
 
 export class SupabaseRepairOrderRepository {
@@ -63,6 +64,8 @@ export class SupabaseRepairOrderRepository {
       if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
         if (ctx.branchId) {
           query = query.eq('branch_id', ctx.branchId);
+        } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+          query = query.in('branch_id', ctx.assignedBranches);
         }
       }
 
@@ -110,6 +113,7 @@ export class SupabaseRepairOrderRepository {
           estimated_date: data.estimatedDate?.toISOString(),
           advance_payment: data.advancePayment || 0,
           total_cost: data.totalCost || 0,
+          images: data.images || [],
           notes: data.notes || [],
           warranty_period_months: data.warrantyPeriodMonths || 3,
           storage_period_months: data.storagePeriodMonths || 1
@@ -150,6 +154,8 @@ export class SupabaseRepairOrderRepository {
       if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
         if (ctx.branchId) {
           query = query.eq('branch_id', ctx.branchId);
+        } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+          query = query.in('branch_id', ctx.assignedBranches);
         }
       }
 
@@ -164,6 +170,34 @@ export class SupabaseRepairOrderRepository {
   }
 
   /**
+   * Obtener orden por Folio (Para seguimiento público)
+   * No requiere contexto de organización
+   */
+  async findByFolio(folio: string): Promise<RepairOrder | null> {
+    try {
+      // Usamos admin para saltar RLS si es necesario, ya que el tracking es público
+      // y no hay usuario autenticado. En el backend supabase se resuelve a admin role.
+      const query = supabase
+        .from('repair_orders')
+        .select(`
+          *,
+          status_notes:repair_status_history(*),
+          warranty_claims(*)
+        `)
+        .ilike('folio', folio)
+        .single();
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return this.mapToLocal((data as unknown) as DBRepairWithRelations);
+    } catch (error) {
+      console.error(`Error getting repair order by folio ${folio} from Supabase:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Actualizar orden con filtro de Org y Sucursal (si aplica)
    */
   async update(id: string, updates: UpdateRepairOrderRequest & { warrantyClaims?: any[] }): Promise<RepairOrder | null> {
@@ -172,19 +206,30 @@ export class SupabaseRepairOrderRepository {
       if (!ctx.organizationId) return null;
 
       // Manejar reclamos de garantía
-      if (updates.warrantyClaims && Array.isArray(updates.warrantyClaims)) {
+      if (updates.warrantyClaims && Array.isArray(updates.warrantyClaims) && updates.warrantyClaims.length > 0) {
+        // En lugar de tomar solo el último, insertamos los reclamos que no tienen ID o cuyo ID no está en DB.
+        // Dado el flujo actual, normalmente es el último elemento.
         const latestClaim = updates.warrantyClaims[updates.warrantyClaims.length - 1];
         if (latestClaim && latestClaim.reason) {
-          await supabase.from('warranty_claims').insert({
+          // Always try to insert the latest claim if passed in the update block
+          // It's safe since the API explicitly passes the new list to update
+          const { error: insertError } = await supabase.from('warranty_claims').insert({
+            id: latestClaim.id,
             repair_id: id,
             reason: String(latestClaim.reason),
             technician: String(latestClaim.technician || ''),
             notes: String(latestClaim.notes || ''),
             resolution: String(latestClaim.resolution || ''),
-            status: String(latestClaim.status || 'pending'),
-            organization_id: ctx.organizationId!,
-            branch_id: ctx.branchId || null
+            status: String(latestClaim.status || 'pending')
           } as any);
+          
+          if (insertError) {
+            console.error('Error insertando warranty_claim:', insertError);
+            // Ignore error if it already exists, otherwise throw
+            if (insertError.code !== '23505') { // 23505 is unique violation
+              throw insertError;
+            }
+          }
         }
       }
 
@@ -192,6 +237,7 @@ export class SupabaseRepairOrderRepository {
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.totalCost !== undefined) dbUpdates.total_cost = updates.totalCost;
       if (updates.confirmedDiagnosis) dbUpdates.confirmed_diagnosis = updates.confirmedDiagnosis;
+      if (updates.images !== undefined) dbUpdates.images = updates.images;
 
       if (Object.keys(dbUpdates).length > 0) {
         let query = supabase
@@ -204,6 +250,8 @@ export class SupabaseRepairOrderRepository {
         if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
           if (ctx.branchId) {
             query = query.eq('branch_id', ctx.branchId);
+          } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+            query = query.in('branch_id', ctx.assignedBranches);
           }
         }
 
@@ -215,6 +263,31 @@ export class SupabaseRepairOrderRepository {
     } catch (error) {
       console.error(`Error updating repair order ${id}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Actualizar un reclamo de garantía específico
+   */
+  async updateWarrantyClaim(claimId: string, updates: any): Promise<boolean> {
+    try {
+      const dbUpdates: any = {};
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.resolution !== undefined) dbUpdates.resolution = updates.resolution;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+      if (Object.keys(dbUpdates).length === 0) return true;
+
+      const { error } = await supabase
+        .from('warranty_claims')
+        .update(dbUpdates)
+        .eq('id', claimId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error(`Error updating warranty claim ${claimId}:`, error);
+      return false;
     }
   }
 
@@ -234,6 +307,8 @@ export class SupabaseRepairOrderRepository {
     if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
       if (ctx.branchId) {
         query = query.eq('branch_id', ctx.branchId);
+      } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+        query = query.in('branch_id', ctx.assignedBranches);
       }
     }
 
@@ -284,6 +359,8 @@ export class SupabaseRepairOrderRepository {
     if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
       if (ctx.branchId) {
         query = query.eq('branch_id', ctx.branchId);
+      } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+        query = query.in('branch_id', ctx.assignedBranches);
       }
     }
 
@@ -291,6 +368,76 @@ export class SupabaseRepairOrderRepository {
     if (error) return [];
     const repairData = (data as unknown) as DBRepairWithRelations[];
     return (repairData || []).map(o => this.mapToLocal(o));
+  }
+
+  /**
+   * Actualizar el estado de una orden de reparación
+   */
+  async updateStatus(id: string, status: string, note?: string): Promise<RepairOrder | null> {
+    try {
+      const ctx = await this.getEffectiveContext();
+      if (!ctx.organizationId) return null;
+
+      // Obtener el estado actual primero
+      const current = await this.findById(id);
+      const previousStatus = current?.status || null;
+
+      let query = supabase
+        .from('repair_orders')
+        .update({ status } as any)
+        .eq('id', id)
+        .eq('organization_id', ctx.organizationId);
+
+      if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
+        if (ctx.branchId) {
+          query = query.eq('branch_id', ctx.branchId);
+        } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+          query = query.in('branch_id', ctx.assignedBranches);
+        }
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+
+      // Registrar en el historial
+      await this.addStatusNote(id, previousStatus, status, note);
+
+      return await this.findById(id);
+    } catch (error) {
+      console.error(`Error updating status of repair order ${id}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Eliminar una orden de reparación
+   */
+  async delete(id: string): Promise<boolean> {
+    try {
+      const ctx = await this.getEffectiveContext();
+      if (!ctx.organizationId) return false;
+
+      let query = supabase
+        .from('repair_orders')
+        .delete()
+        .eq('id', id)
+        .eq('organization_id', ctx.organizationId);
+
+      if (ctx.role === 'technician' || ctx.role === 'branch_admin') {
+        if (ctx.branchId) {
+          query = query.eq('branch_id', ctx.branchId);
+        } else if (ctx.assignedBranches && ctx.assignedBranches.length > 0) {
+          query = query.in('branch_id', ctx.assignedBranches);
+        }
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error(`Error deleting repair order ${id}:`, error);
+      return false;
+    }
   }
 
   private async addStatusNote(repairId: string, oldStatus: string | null, newStatus: string, note?: string) {
@@ -309,6 +456,7 @@ export class SupabaseRepairOrderRepository {
       id: db.id,
       type: 'repair_order',
       folio: db.folio,
+      branchId: db.branch_id || undefined,
       clientId: db.client_id || undefined,
       clientName: db.client_name,
       clientPhone: db.client_phone,

@@ -37,6 +37,7 @@ export interface RepairOrder {
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
+  branchId?: string;
   
   // Información del aparato
   deviceType: string; // Ej: "Lavadora", "Refrigerador", "Microondas"

@@ -26,6 +26,7 @@ export function useWarrantyClaims(repairOrderId: string) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(claimData),
       });
 
@@ -50,7 +51,9 @@ export function useWarrantyClaims(repairOrderId: string) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/repair-orders/${repairOrderId}/warranty-claims`);
+      const response = await fetch(`/api/repair-orders/${repairOrderId}/warranty-claims`, {
+        credentials: 'include'
+      });
       const result = await response.json();
 
       if (!result.success) {
@@ -67,9 +70,40 @@ export function useWarrantyClaims(repairOrderId: string) {
     }
   }, [repairOrderId]);
 
+  const updateWarrantyClaim = useCallback(async (claimId: string, claimData: Partial<CreateWarrantyClaimData>) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/repair-orders/${repairOrderId}/warranty-claims/${claimId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(claimData),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error actualizando reclamo de garantía');
+      }
+
+      return result.data;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setError(errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [repairOrderId]);
+
   return {
     createWarrantyClaim,
     getWarrantyClaims,
+    updateWarrantyClaim,
     loading,
     error,
     clearError: () => setError(null)
