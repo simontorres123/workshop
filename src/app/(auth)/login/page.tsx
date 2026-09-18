@@ -54,7 +54,7 @@ export default function LoginPage() {
 
       router.push('/dashboard');
     } catch {
-      setError('Correo o contrasena incorrectos');
+      setError('Correo o contraseña incorrectos');
       setUser(null);
     } finally {
       setLoading(false);
@@ -63,12 +63,12 @@ export default function LoginPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: isMobile ? '#F9FAFB' : '#161C24' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: '#F7F9FA' }}>
       {/* Left Panel - Brand */}
       {!isMobile && (
         <Box
           sx={{
-            flex: 1.2,
+            flex: 1.15,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -76,46 +76,18 @@ export default function LoginPage() {
             position: 'relative',
             overflow: 'hidden',
             p: 6,
-          }}
-        >
-          {/* Abstract SVG background pattern */}
-          <Box
-            sx={{
+            backgroundImage: "url('/images/register-workshop-hero-without-appliance.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center right',
+            backgroundRepeat: 'no-repeat',
+            '&::before': {
+              content: '""',
               position: 'absolute',
               inset: 0,
-              opacity: 0.06,
-              background: `radial-gradient(circle at 20% 50%, #5BE49B 0%, transparent 50%),
-                           radial-gradient(circle at 80% 20%, #00A76F 0%, transparent 40%),
-                           radial-gradient(circle at 60% 80%, #007867 0%, transparent 45%)`,
-            }}
-          />
-
-          {/* Decorative circles */}
-          <Box
-            sx={{
-              position: 'absolute',
-              width: 400,
-              height: 400,
-              border: '1px solid',
-              borderColor: 'rgba(91, 228, 155, 0.08)',
-              borderRadius: '50%',
-              top: '10%',
-              left: '-5%',
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              width: 300,
-              height: 300,
-              border: '1px solid',
-              borderColor: 'rgba(0, 167, 111, 0.1)',
-              borderRadius: '50%',
-              bottom: '5%',
-              right: '-3%',
-            }}
-          />
-
+              background: 'linear-gradient(90deg, rgba(15, 61, 54, 0.96) 0%, rgba(15, 61, 54, 0.84) 45%, rgba(15, 61, 54, 0.35) 100%)',
+            },
+          }}
+        >
           <Box sx={{ zIndex: 1, textAlign: 'center', maxWidth: 420 }}>
             {/* Logo icon */}
             <Box
@@ -209,7 +181,7 @@ export default function LoginPage() {
               Bienvenido
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Inicia sesion para acceder a tu panel de control
+              Inicia sesión para acceder a tu panel de control
             </Typography>
           </Box>
 
@@ -218,7 +190,7 @@ export default function LoginPage() {
             <TextField
               fullWidth
               name="email"
-              label="Correo Electronico"
+              label="Correo electrónico"
               autoComplete="email"
               autoFocus
               InputProps={{
@@ -234,7 +206,7 @@ export default function LoginPage() {
             <TextField
               fullWidth
               name="password"
-              label="Contrasena"
+              label="Contraseña"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               InputProps={{
@@ -271,7 +243,7 @@ export default function LoginPage() {
                   '&:hover': { color: 'primary.main' },
                 }}
               >
-                Olvidaste tu contrasena?
+                ¿Olvidaste tu contraseña?
               </Link>
             </Box>
 
@@ -306,59 +278,12 @@ export default function LoginPage() {
                 )
               }
             >
-              {isSubmitting ? 'Iniciando sesion...' : 'Iniciar Sesion'}
+              {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Button>
-
-            {/* Divider */}
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                my: 3,
-                '&::before, &::after': {
-                  content: '""',
-                  flex: 1,
-                  height: '1px',
-                  bgcolor: '#DFE3E8',
-                },
-              }}
-            >
-              <Typography variant="caption" color="text.disabled" sx={{ px: 2, fontWeight: 600 }}>
-                O
-              </Typography>
-            </Box>
-
-            {/* Social */}
-            <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
-              <Button
-                variant="outlined"
-                fullWidth
-                sx={{
-                  py: 1.2,
-                  borderColor: '#DFE3E8',
-                  color: 'text.primary',
-                  '&:hover': { borderColor: '#919EAB', bgcolor: 'rgba(145,158,171,0.08)' },
-                }}
-              >
-                <Icon icon="logos:google-icon" width={20} />
-              </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                sx={{
-                  py: 1.2,
-                  borderColor: '#DFE3E8',
-                  color: 'text.primary',
-                  '&:hover': { borderColor: '#919EAB', bgcolor: 'rgba(145,158,171,0.08)' },
-                }}
-              >
-                <Icon icon="mdi:github" width={22} />
-              </Button>
-            </Box>
 
             {/* Register link */}
             <Typography variant="body2" color="text.secondary" textAlign="center">
-              No tienes cuenta?{' '}
+              ¿No tienes cuenta?{' '}
               <Link
                 component={NextLink}
                 href="/register"
@@ -366,7 +291,7 @@ export default function LoginPage() {
                 color="primary"
                 sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
               >
-                Registrate aqui
+                Regístrate aquí
               </Link>
             </Typography>
           </Box>

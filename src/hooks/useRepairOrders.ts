@@ -99,7 +99,11 @@ export function useRepairOrders(): UseRepairOrdersResult {
       // Si es 401, intentar refrescar la sesión y reintentar
       if (response.status === 401) {
         const { supabase } = await import('@/lib/supabase/client');
-        const { data: { session } } = await supabase.auth.refreshSession();
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+          throw new Error('Tu sesión expiró. Inicia sesión nuevamente para continuar.');
+        }
         if (session?.access_token) {
           document.cookie = `auth_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
         }

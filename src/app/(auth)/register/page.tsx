@@ -93,14 +93,14 @@ export default function RegisterPage() {
       sx={{
         minHeight: '100vh',
         display: 'flex',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundColor: '#F7F9FA',
       }}
     >
       {/* Left Panel - Brand/Welcome (Solo Desktop) */}
       {!isMobile && (
         <Box
           sx={{
-            flex: 1,
+            flex: 1.15,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -109,18 +109,21 @@ export default function RegisterPage() {
             position: 'relative',
             overflow: 'hidden',
             p: 4,
+            backgroundImage: "url('/images/register-workshop-hero.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center right',
+            backgroundRepeat: 'no-repeat',
             '&::before': {
               content: '""',
               position: 'absolute',
               top: 0, left: 0, right: 0, bottom: 0,
-              background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat',
-              opacity: 0.1,
+              background: 'linear-gradient(90deg, rgba(15, 61, 54, 0.96) 0%, rgba(15, 61, 54, 0.8) 42%, rgba(15, 61, 54, 0.18) 100%)',
             },
           }}
         >
           <Fade in timeout={1000}>
             <Box sx={{ textAlign: 'center', zIndex: 1, maxWidth: 500 }}>
-              <Icon icon="eva:flash-outline" width={80} height={80} style={{ marginBottom: 24 }} />
+              <Icon icon="eva:settings-2-outline" width={64} height={64} style={{ marginBottom: 24 }} />
               <Typography variant="h3" fontWeight="bold" gutterBottom>
                 Empieza hoy mismo
               </Typography>
@@ -147,11 +150,12 @@ export default function RegisterPage() {
       {/* Right Panel - Register Form */}
       <Box
         sx={{
-          flex: isMobile ? 1 : 0.8,
+          flex: isMobile ? 1 : 0.85,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: 3,
+          padding: { xs: 2, sm: 3, md: 5 },
+          backgroundColor: '#F7F9FA',
         }}
       >
         <Slide direction="left" in timeout={800}>
@@ -161,8 +165,10 @@ export default function RegisterPage() {
               width: '100%',
               maxWidth: 550,
               padding: isMobile ? 3 : 5,
-              borderRadius: isMobile ? 2 : 4,
+              borderRadius: isMobile ? 2 : 3,
               background: 'rgba(255, 255, 255, 1)',
+              border: isMobile ? 'none' : '1px solid #E3E9ED',
+              boxShadow: isMobile ? 'none' : '0 18px 50px rgba(36, 49, 63, 0.10)',
             }}
           >
             <Box sx={{ mb: 4, textAlign: 'center' }}>
@@ -267,9 +273,9 @@ export default function RegisterPage() {
                   borderRadius: 2,
                   fontSize: '1.1rem',
                   fontWeight: 'bold',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  backgroundColor: '#00A878',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                    backgroundColor: '#008F68',
                     transform: 'translateY(-1px)',
                   },
                   transition: 'all 0.3s ease',

@@ -38,6 +38,12 @@ const platformConfig: NavItemData[] = [
     path: '/system',
     icon: 'eva:options-2-fill',
     roles: ['super_admin']
+  },
+  {
+    title: 'usuarios',
+    path: '/system/users',
+    icon: 'eva:people-fill',
+    roles: ['super_admin']
   }
 ];
 

@@ -1,6 +1,22 @@
 import { supabase } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
 
+const isInvalidRefreshTokenError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return /invalid refresh token|refresh token not found/i.test(message);
+};
+
+const clearLocalAuthSession = () => {
+  if (typeof window === 'undefined') return;
+
+  // Supabase guarda la sesión con una clave sb-<project>-auth-token.
+  Object.keys(window.localStorage)
+    .filter((key) => key.includes('auth-token'))
+    .forEach((key) => window.localStorage.removeItem(key));
+
+  document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+};
+
 export type UserProfile = Database['public']['Tables']['user_profiles']['Row'] & {
   assignedBranches?: string[];
   organizations?: any;
@@ -108,9 +124,18 @@ export const authService = {
    * Obtener sesión actual
    */
   getSession: async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return session;
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return session;
+    } catch (error) {
+      if (!isInvalidRefreshTokenError(error)) throw error;
+
+      // Evita que el cliente siga intentando renovar una sesión que Supabase ya invalidó.
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      clearLocalAuthSession();
+      return null;
+    }
   },
 
   /**
