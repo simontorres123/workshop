@@ -11,7 +11,7 @@ type Props = {
   sale: Sale | null;
   branchName?: string;
   onClose: () => void;
-  onWhatsApp: () => void;
+  onWhatsApp: () => void | Promise<void>;
 };
 
 export function SaleReceiptDialog({ sale, branchName, onClose, onWhatsApp }: Props) {
@@ -56,7 +56,7 @@ export function SaleReceiptDialog({ sale, branchName, onClose, onWhatsApp }: Pro
         <Box sx={{ mt: 3, p: 1.5, borderRadius: 1.5, bgcolor: 'grey.50' }}><Typography variant="caption" color="text.secondary">Este documento es un comprobante interno de venta. Para solicitar una factura fiscal, consulta con el taller.</Typography></Box>
       </Box>}
     </DialogContent>
-    <DialogActions className="sale-receipt-actions" sx={{ flexWrap: 'wrap', gap: 1, px: { xs: 2, sm: 4 }, py: 2 }}><Button onClick={onWhatsApp} startIcon={<Icon icon="logos:whatsapp-icon" />}>Enviar por WhatsApp</Button><Button variant="outlined" onClick={printReceipt} startIcon={<Icon icon="eva:printer-outline" />}>Imprimir</Button><Button variant="contained" onClick={onClose}>Cerrar</Button></DialogActions>
+    <DialogActions className="sale-receipt-actions" sx={{ flexWrap: 'wrap', gap: 1, px: { xs: 2, sm: 4 }, py: 2 }}><Button onClick={onWhatsApp} startIcon={<Icon icon="logos:whatsapp-icon" />}>Enviar PDF por WhatsApp</Button><Button variant="outlined" onClick={printReceipt} startIcon={<Icon icon="eva:printer-outline" />}>Imprimir</Button><Button variant="contained" onClick={onClose}>Cerrar</Button></DialogActions>
     <style>{`@page { margin: 0; } @media print { body * { visibility: hidden !important; } .sale-receipt-print, .sale-receipt-print * { visibility: visible !important; } .sale-receipt-print { position: static !important; width: 100% !important; } .sale-receipt-actions, .MuiDialogTitle-root, .MuiDialogContent-root { overflow: visible !important; } .MuiDialog-container, .MuiDialog-paper, .MuiDialogContent-root { padding: 0 !important; margin: 0 !important; max-width: none !important; box-shadow: none !important; } }`}</style>
   </Dialog>;
 }
