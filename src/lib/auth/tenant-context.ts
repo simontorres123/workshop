@@ -39,6 +39,7 @@ export async function getTenantContext(request: NextRequest): Promise<TenantCont
     const assignedBranches = (profile.user_branches || []).map((branch: any) => branch.branch_id);
 
     return {
+      userId: user.id,
       organizationId: profile.organization_id as string,
       branchId: assignedBranches.length > 0 ? assignedBranches[0] : null,
       assignedBranches,

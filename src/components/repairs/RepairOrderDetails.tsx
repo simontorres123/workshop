@@ -29,6 +29,7 @@ import { format, addMonths, isBefore, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import WarrantyClaimHistory from './WarrantyClaimHistory';
 import { useWarrantyClaims } from '@/hooks/useWarrantyClaims';
+import RepairPartsSection from './RepairPartsSection';
 
 // Función para traducir estados a español
 const getStatusLabel = (status: string) => {
@@ -65,8 +66,8 @@ interface RepairOrderDetailsProps {
 }
 
 export default function RepairOrderDetails({ 
-  order, 
-  open, 
+  order,
+  open,
   onClose,
   onOrderUpdate,
   onPrintReceipt,
@@ -281,6 +282,9 @@ export default function RepairOrderDetails({
               </CardContent>
             </Card>
           )}
+
+          {/* Fechas */}
+          <RepairPartsSection repairId={order.id} status={order.status} />
 
           {/* Fechas */}
           <Card variant="outlined">
@@ -603,15 +607,6 @@ export default function RepairOrderDetails({
           onClick={() => onPrintReceipt?.(order)}
         >
           Imprimir comprobante
-        </Button>
-        <Button 
-          variant="contained"
-          startIcon={<Icon icon="eva:edit-outline" />}
-          onClick={() => {
-            // Open edit modal for order
-          }}
-        >
-          Editar
         </Button>
       </DialogActions>
 

@@ -7,6 +7,17 @@ export enum ProductStatus {
 }
 
 export enum ProductCategory {
+  SPARE_PARTS = 'spare_parts',
+  PARTS_MATERIALS = 'parts_materials',
+  CONSUMABLES = 'consumables',
+  ELECTRICAL = 'electrical',
+  CABLES_CONNECTORS = 'cables_connectors',
+  FASTENERS = 'fasteners',
+  LUBRICANTS = 'lubricants',
+  CLEANING = 'cleaning',
+  TOOLS = 'tools',
+  SAFETY = 'safety',
+  PACKAGING = 'packaging',
   WASHING_MACHINE = 'washing_machine',
   REFRIGERATOR = 'refrigerator',
   MICROWAVE = 'microwave',
@@ -25,6 +36,7 @@ export interface Product {
   brand: string;
   model: string;
   category: ProductCategory;
+  customCategory?: string;
   
   // Precios y costos
   price: number; // Precio de venta al público
@@ -82,6 +94,7 @@ export interface CreateProductRequest {
   brand: string;
   model: string;
   category: ProductCategory;
+  customCategory?: string;
   price: number;
   cost?: number;
   stock: number;
@@ -126,6 +139,14 @@ export interface ProductFilters {
   branchId?: string;
 }
 
+export type ProductSearchFilters = ProductFilters & {
+  inStock?: boolean;
+  sortBy?: 'name' | 'category' | 'quantity' | 'salePrice' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+};
+
 export interface StockMovement {
   id: string;
   productId: string;
@@ -141,6 +162,17 @@ export interface StockMovement {
 }
 
 export const PRODUCT_CATEGORY_CONFIG = {
+  [ProductCategory.SPARE_PARTS]: { label: 'Refacciones', icon: 'eva:settings-2-outline', color: 'primary' as const },
+  [ProductCategory.PARTS_MATERIALS]: { label: 'Refacciones y materiales', icon: 'eva:settings-2-outline', color: 'primary' as const },
+  [ProductCategory.CONSUMABLES]: { label: 'Consumibles', icon: 'eva:archive-outline', color: 'warning' as const },
+  [ProductCategory.ELECTRICAL]: { label: 'Componentes eléctricos', icon: 'eva:flash-outline', color: 'info' as const },
+  [ProductCategory.CABLES_CONNECTORS]: { label: 'Cables y conectores', icon: 'eva:flip-2-outline', color: 'info' as const },
+  [ProductCategory.FASTENERS]: { label: 'Tornillería y fijaciones', icon: 'eva:more-horizontal-outline', color: 'secondary' as const },
+  [ProductCategory.LUBRICANTS]: { label: 'Lubricantes', icon: 'eva:droplet-outline', color: 'success' as const },
+  [ProductCategory.CLEANING]: { label: 'Limpieza', icon: 'eva:brush-outline', color: 'success' as const },
+  [ProductCategory.TOOLS]: { label: 'Herramientas', icon: 'eva:hammer-outline', color: 'primary' as const },
+  [ProductCategory.SAFETY]: { label: 'Seguridad', icon: 'eva:shield-outline', color: 'error' as const },
+  [ProductCategory.PACKAGING]: { label: 'Empaque y entrega', icon: 'eva:inbox-outline', color: 'secondary' as const },
   [ProductCategory.WASHING_MACHINE]: {
     label: 'Lavadora',
     icon: 'eva:droplet-outline',

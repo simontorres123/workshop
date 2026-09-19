@@ -1,86 +1,57 @@
 "use client";
 
-import React, { useEffect } from 'react';
-import { Box, Container, Paper, Typography, CircularProgress, Alert, Stack, useMediaQuery, useTheme } from '@mui/material';
-import { GridColDef } from '@mui/x-data-grid';
-import StatCard from '@/components/ui/StatCard';
-import DataTable from '@/components/ui/DataTable';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
-import CustomButton from '@/components/ui/CustomButton';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, Divider, FormControl, IconButton, InputAdornment, InputLabel,
+  MenuItem, Paper, Select, Stack, Tab, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Tabs, TextField, Tooltip, Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import MonetizationOnOutlinedIcon from '@mui/icons-material/MonetizationOnOutlined';
+import SearchIcon from '@mui/icons-material/Search';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useProducts } from '@/hooks/useProducts';
+import { Product, ProductCategory, PRODUCT_CATEGORY_CONFIG } from '@/types/product';
 
+type ProductForm = {
+  name: string; category: ProductCategory; customCategory: string; brand: string; model: string; sku: string;
+  price: string; cost: string; stock: string; lowStockThreshold: string; location: string; description: string;
+};
+
+const emptyForm: ProductForm = { name: '', category: ProductCategory.OTHER, customCategory: '', brand: '', model: '', sku: '', price: '', cost: '', stock: '0', lowStockThreshold: '2', location: '', description: '' };
+const categoryLabel = (category: ProductCategory, customCategory?: string) => category === ProductCategory.OTHER && customCategory ? customCategory : PRODUCT_CATEGORY_CONFIG[category]?.label || 'Otro';
+const money = (value: number) => `$${value.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+function Stat({ label, value, hint, icon, tone }: { label: string; value: string; hint: string; icon: React.ReactNode; tone: 'primary' | 'warning' | 'info' | 'success' }) {
+  return <Card sx={{ height: '100%', border: '1px solid', borderColor: 'grey.200', boxShadow: 'none' }}><CardContent sx={{ p: { xs: 2, sm: 2.5 } }}><Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}><Box><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant="h4" sx={{ mt: 0.75, fontSize: { xs: '1.65rem', sm: '2rem' } }}>{value}</Typography><Typography variant="caption" color="text.secondary">{hint}</Typography></Box><Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', color: `${tone}.dark`, bgcolor: `${tone}.lighter` }}>{icon}</Box></Stack></CardContent></Card>;
+}
+function ProductDialog({ open, product, onClose, onSave, saving }: { open: boolean; product: Product | null; onClose: () => void; onSave: (data: ProductForm) => Promise<void>; saving: boolean }) {
+  const [form, setForm] = useState<ProductForm>(emptyForm);
+  useEffect(() => { setForm(product ? { name: product.name || '', category: product.category || ProductCategory.OTHER, customCategory: product.customCategory || '', brand: product.brand || '', model: product.model || '', sku: product.sku || '', price: String(product.price ?? ''), cost: String(product.cost ?? ''), stock: String(product.stock ?? 0), lowStockThreshold: String(product.lowStockThreshold ?? 2), location: product.location || '', description: product.description || '' } : emptyForm); }, [product, open]);
+  const update = (key: keyof ProductForm) => (event: { target: { value: string } }) => setForm((current) => ({ ...current, [key]: event.target.value } as ProductForm));
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm"><DialogTitle>{product ? 'Editar producto' : 'Nuevo producto'}</DialogTitle><DialogContent dividers><Stack spacing={2} sx={{ pt: 0.5 }}><TextField label="Nombre del producto" value={form.name} onChange={update('name')} required fullWidth autoFocus /><FormControl fullWidth required><InputLabel>Categoría</InputLabel><Select label="Categoría" value={form.category} onChange={update('category')}>{Object.values(ProductCategory).map((category) => <MenuItem key={category} value={category}>{categoryLabel(category)}</MenuItem>)}</Select></FormControl>{form.category === ProductCategory.OTHER && <TextField label="Especifica la categoría" value={form.customCategory} onChange={update('customCategory')} required fullWidth helperText="Ejemplo: motores, tarjetas, sensores o piezas especiales" />}<Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}><TextField label="Marca" value={form.brand} onChange={update('brand')} fullWidth /><TextField label="Modelo" value={form.model} onChange={update('model')} fullWidth /></Stack><Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}><TextField label="Precio de venta" type="number" value={form.price} onChange={update('price')} required fullWidth InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} /><TextField label="Costo" type="number" value={form.cost} onChange={update('cost')} fullWidth InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} /></Stack><Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}><TextField label="Existencias" type="number" value={form.stock} onChange={update('stock')} required fullWidth /><TextField label="Mínimo para alertar" type="number" value={form.lowStockThreshold} onChange={update('lowStockThreshold')} required fullWidth /></Stack><Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}><TextField label="SKU" value={form.sku} onChange={update('sku')} fullWidth /><TextField label="Ubicación" value={form.location} onChange={update('location')} fullWidth /></Stack><TextField label="Descripción" value={form.description} onChange={update('description')} multiline minRows={2} fullWidth /></Stack></DialogContent><DialogActions sx={{ p: 2 }}><Button onClick={onClose}>Cancelar</Button><Button variant="contained" disabled={saving || !form.name || !form.price || (form.category === ProductCategory.OTHER && !form.customCategory.trim())} onClick={() => onSave(form)}>{saving ? 'Guardando…' : 'Guardar producto'}</Button></DialogActions></Dialog>;
+}
 export default function InventoryPage() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { products, loading, error, fetchProducts } = useProducts();
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  const totalValue = (products || []).reduce((acc, product) => acc + (product.price || 0) * (product.stock || 0), 0);
-
-  const columns: GridColDef[] = [
-    { field: 'name', headerName: 'Nombre', flex: 2, minWidth: 150 },
-    ...(!isMobile ? [
-      { field: 'brand', headerName: 'Marca', flex: 1, minWidth: 120 } as GridColDef,
-      { field: 'model', headerName: 'Modelo', flex: 1, minWidth: 120 } as GridColDef,
-    ] : []),
-    {
-      field: 'price',
-      headerName: 'Precio',
-      type: 'number' as const,
-      flex: 1,
-      minWidth: 100,
-      valueFormatter: (value: number) => `$${Number(value).toLocaleString()}`
-    },
-    { field: 'stock', headerName: 'Stock', type: 'number' as const, flex: 1, minWidth: 80 },
-  ];
-
-  if (loading && products.length === 0) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-        <Box sx={{ flex: 1 }}>
-          <StatCard
-            title="Productos Totales"
-            value={String(products.length)}
-            icon={<InventoryIcon />}
-            color="info"
-          />
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <StatCard
-            title="Valor Total"
-            value={`$${totalValue.toLocaleString()}`}
-            icon={<MonetizationOnIcon />}
-            color="success"
-          />
-        </Box>
-      </Stack>
-
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
-        <Typography variant="h4" component="h1">
-          Inventario de Productos
-        </Typography>
-        <CustomButton variant="contained" sx={{ flexShrink: 0 }}>
-          Añadir Producto
-        </CustomButton>
-      </Box>
-
-      <Paper sx={{ p: { xs: 1, sm: 2 }, display: 'flex', flexDirection: 'column' }}>
-        <DataTable rows={products} columns={columns} getRowId={(row) => row.id} />
-      </Paper>
-    </Container>
-  );
+  const { products, loading, error, fetchProducts, createProduct, updateProduct, updateStock } = useProducts();
+  const [search, setSearch] = useState(''); const [category, setCategory] = useState('all'); const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [dialog, setDialog] = useState<'create' | 'edit' | null>(null); const [editing, setEditing] = useState<Product | null>(null); const [movement, setMovement] = useState<{ product: Product; type: 'in' | 'out' } | null>(null);
+  const [movementQty, setMovementQty] = useState('1'); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  const visibleProducts = useMemo(() => products.filter((product) => { const query = search.toLowerCase().trim(); const matchesSearch = !query || [product.name, product.brand, product.model, product.sku].some((value) => value?.toLowerCase().includes(query)); const matchesCategory = category === 'all' || product.category === category; const matchesStock = stockFilter === 'all' || (stockFilter === 'out' ? product.stock === 0 : product.stock > 0 && product.stock <= product.lowStockThreshold); return matchesSearch && matchesCategory && matchesStock; }), [products, search, category, stockFilter]);
+  const lowStock = products.filter((product) => product.stock <= product.lowStockThreshold); const stockUnits = products.reduce((sum, product) => sum + (product.stock || 0), 0); const inventoryValue = products.reduce((sum, product) => sum + (product.price || 0) * (product.stock || 0), 0);
+  const saveProduct = useCallback(async (form: ProductForm) => { setSaving(true); setNotice(null); const payload = { name: form.name, description: form.description, brand: form.brand, model: form.model, category: form.category, customCategory: form.customCategory.trim() || undefined, price: Number(form.price), cost: form.cost ? Number(form.cost) : undefined, stock: Number(form.stock), minStock: Number(form.lowStockThreshold), lowStockThreshold: Number(form.lowStockThreshold), location: form.location || undefined, sku: form.sku || undefined, isActive: true }; const result = editing ? await updateProduct(editing.id, { ...payload, id: editing.id }) : await createProduct(payload); setSaving(false); if (result) { setDialog(null); setEditing(null); setNotice(editing ? 'Producto actualizado.' : 'Producto creado correctamente.'); } }, [createProduct, editing, updateProduct]);
+  const saveMovement = async () => { if (!movement || Number(movementQty) <= 0) return; setSaving(true); setNotice(null); const success = await updateStock(movement.product.id, Number(movementQty), movement.type === 'in' ? 'add' : 'subtract'); setSaving(false); if (success) { setMovement(null); setNotice('Movimiento registrado.'); } };
+  return <Box sx={{ maxWidth: 1440, mx: 'auto' }}><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} gap={2} sx={{ mb: 3 }}><Box><Typography variant="h3" sx={{ fontSize: { xs: '1.65rem', sm: '2rem' } }}>Inventario</Typography><Typography color="text.secondary" sx={{ mt: 0.5 }}>Controla tus existencias y mantén tu operación en movimiento.</Typography></Box><Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditing(null); setDialog('create'); }} sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}>Nuevo producto</Button></Stack>
+    {(error || notice) && <Alert severity={error ? 'error' : 'success'} onClose={() => setNotice(null)} sx={{ mb: 2 }}>{error || notice}</Alert>}
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}><Stat label="Productos" value={String(products.length)} hint="en el catálogo" icon={<Inventory2OutlinedIcon />} tone="primary" /><Stat label="Unidades" value={stockUnits.toLocaleString('es-MX')} hint="existencias totales" icon={<Inventory2OutlinedIcon />} tone="info" /><Stat label="Valor inventario" value={money(inventoryValue)} hint="a precio de venta" icon={<MonetizationOnOutlinedIcon />} tone="success" /><Stat label="Stock bajo" value={String(lowStock.length)} hint="requieren atención" icon={<WarningAmberOutlinedIcon />} tone="warning" /></Box>
+    {lowStock.length > 0 && <Alert severity="warning" icon={<WarningAmberOutlinedIcon />} sx={{ mb: 3, alignItems: 'center' }}><strong>{lowStock.length} {lowStock.length === 1 ? 'producto necesita' : 'productos necesitan'}</strong> reabastecimiento. Revisa las existencias marcadas en la tabla.</Alert>}
+    <Paper sx={{ border: '1px solid', borderColor: 'grey.200', boxShadow: 'none', overflow: 'hidden' }}><Box sx={{ p: { xs: 2, sm: 2.5 } }}><Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between"><TextField value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, marca o SKU" size="small" sx={{ minWidth: { md: 320 } }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} /><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}><FormControl size="small" sx={{ minWidth: 170 }}><InputLabel>Categoría</InputLabel><Select label="Categoría" value={category} onChange={(event) => setCategory(event.target.value)}><MenuItem value="all">Todas las categorías</MenuItem>{Object.values(ProductCategory).map((item) => <MenuItem key={item} value={item}>{categoryLabel(item)}</MenuItem>)}</Select></FormControl><Tabs value={stockFilter} onChange={(_, value) => setStockFilter(value)} variant="scrollable" allowScrollButtonsMobile sx={{ minHeight: 40, '& .MuiTab-root': { minHeight: 40, px: 1.5 } }}><Tab value="all" label="Todos" /><Tab value="low" label="Stock bajo" /><Tab value="out" label="Agotados" /></Tabs></Stack></Stack></Box><Divider />
+      <TableContainer sx={{ maxHeight: 560 }}><Table stickyHeader sx={{ minWidth: 760 }}><TableHead><TableRow><TableCell>Producto</TableCell><TableCell>Categoría</TableCell><TableCell>SKU / ubicación</TableCell><TableCell align="right">Precio</TableCell><TableCell align="center">Existencias</TableCell><TableCell align="right">Acciones</TableCell></TableRow></TableHead><TableBody>{loading && products.length === 0 && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 7 }}><CircularProgress size={28} /></TableCell></TableRow>}{!loading && visibleProducts.length === 0 && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 7 }}><Typography color="text.secondary">No encontramos productos con esos filtros.</Typography></TableCell></TableRow>}{visibleProducts.map((product) => { const isLow = product.stock <= product.lowStockThreshold; return <TableRow hover key={product.id}><TableCell><Typography variant="subtitle2">{product.name}</Typography><Typography variant="caption" color="text.secondary">{[product.brand, product.model].filter(Boolean).join(' · ') || 'Sin marca/modelo'}</Typography></TableCell><TableCell><Chip size="small" label={categoryLabel(product.category, product.customCategory)} sx={{ bgcolor: 'grey.100' }} /></TableCell><TableCell><Typography variant="body2">{product.sku || 'Sin SKU'}</Typography><Typography variant="caption" color="text.secondary">{product.location || 'Sin ubicación'}</Typography></TableCell><TableCell align="right">{money(product.price || 0)}</TableCell><TableCell align="center"><Chip size="small" label={`${product.stock} uds.`} color={product.stock === 0 ? 'error' : isLow ? 'warning' : 'success'} variant={isLow ? 'filled' : 'outlined'} /></TableCell><TableCell align="right"><Tooltip title="Entrada"><IconButton size="small" color="success" onClick={() => { setMovement({ product, type: 'in' }); setMovementQty('1'); }}><ArrowDownwardIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Salida"><IconButton size="small" color="warning" onClick={() => { setMovement({ product, type: 'out' }); setMovementQty('1'); }}><ArrowUpwardIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Editar"><IconButton size="small" onClick={() => { setEditing(product); setDialog('edit'); }}><EditOutlinedIcon fontSize="small" /></IconButton></Tooltip></TableCell></TableRow>; })}</TableBody></Table></TableContainer><Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid', borderColor: 'grey.200' }}><Typography variant="caption" color="text.secondary">Mostrando {visibleProducts.length} de {products.length} productos</Typography></Box></Paper>
+    <ProductDialog open={dialog !== null} product={editing} onClose={() => { setDialog(null); setEditing(null); }} onSave={saveProduct} saving={saving} /><Dialog open={Boolean(movement)} onClose={() => setMovement(null)} fullWidth maxWidth="xs"><DialogTitle>{movement?.type === 'in' ? 'Registrar entrada' : 'Registrar salida'}</DialogTitle><DialogContent><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{movement?.product.name}</Typography><TextField autoFocus fullWidth label="Cantidad de unidades" type="number" value={movementQty} onChange={(event) => setMovementQty(event.target.value)} inputProps={{ min: 1, max: movement?.type === 'out' ? movement.product.stock : undefined }} helperText={movement?.type === 'out' ? `Disponibles: ${movement.product.stock} unidades` : 'Se agregará al inventario'} /></DialogContent><DialogActions sx={{ p: 2 }}><Button onClick={() => setMovement(null)}>Cancelar</Button><Button variant="contained" onClick={saveMovement} disabled={saving || Number(movementQty) <= 0 || (movement?.type === 'out' && Number(movementQty) > (movement.product.stock || 0))}>{saving ? 'Guardando…' : 'Registrar movimiento'}</Button></DialogActions></Dialog>
+  </Box>;
 }

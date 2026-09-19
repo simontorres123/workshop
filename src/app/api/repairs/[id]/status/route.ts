@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { getTenantContext } from '@/lib/auth/tenant-context';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 export async function PATCH(
   request: NextRequest,
@@ -45,13 +46,46 @@ export async function PATCH(
     }
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
 
+    const reservedPartIds: string[] = [];
+
+    const releaseReservedParts = async () => {
+      for (const partId of reservedPartIds) {
+        await supabaseAdmin.rpc('release_repair_part', {
+          p_part_id: partId,
+          p_organization_id: ctx.organizationId,
+        });
+      }
+    };
+
+    if (status === 'repair_accepted') {
+      const { data: proposedParts, error: partsError } = await supabaseAdmin.from('repair_parts').select('id').eq('repair_id', id).eq('organization_id', ctx.organizationId).eq('status', 'proposed');
+      if (partsError) throw partsError;
+      for (const part of proposedParts || []) {
+        const { error } = await supabaseAdmin.rpc('reserve_repair_part', { p_part_id: part.id, p_organization_id: ctx.organizationId });
+        if (error) {
+          await releaseReservedParts();
+          return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        }
+        reservedPartIds.push(part.id);
+      }
+    }
+
     const updatedOrder = await repairOrderRepository.updateStatus(id, status, note);
 
     if (!updatedOrder) {
+      await releaseReservedParts();
       return NextResponse.json(
         { success: false, error: 'No se pudo actualizar el estado de la orden' },
         { status: 500 }
       );
+    }
+
+    if (['repair_rejected', 'cancelled'].includes(status)) {
+      const { data: activeParts } = await supabaseAdmin.from('repair_parts').select('id').eq('repair_id', id).eq('organization_id', ctx.organizationId).in('status', ['proposed', 'reserved']);
+      for (const part of activeParts || []) await supabaseAdmin.rpc('release_repair_part', { p_part_id: part.id, p_organization_id: ctx.organizationId });
+    } else if (['repaired', 'delivered', 'completed'].includes(status)) {
+      const { error } = await supabaseAdmin.rpc('use_repair_parts', { p_repair_id: id, p_organization_id: ctx.organizationId });
+      if (error) console.error('Error registrando refacciones usadas:', error);
     }
     
     return NextResponse.json({

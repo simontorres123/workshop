@@ -18,6 +18,7 @@ type DBRepairWithRelations = DBRepairOrder & {
 };
 
 export interface TenantContext {
+  userId?: string;
   organizationId: string;
   branchId: string | null;
   assignedBranches?: string[];

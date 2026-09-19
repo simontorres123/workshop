@@ -19,6 +19,7 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  TextField,
   List,
   ListItem,
   ListItemText,
@@ -67,6 +68,7 @@ export default function AutoNotificationScheduler() {
     customDate: new Date().toISOString().split('T')[0],
     frequency: 'daily', // daily, weekly, once
     weekday: 1, // 1=lunes, 7=domingo (para weekly)
+    pendingDays: 3,
     testRun: false
   });
 
@@ -169,7 +171,8 @@ export default function AutoNotificationScheduler() {
             customTime: newNotification.schedule === 'custom' ? newNotification.customTime : undefined,
             customDate: newNotification.schedule === 'custom' && newNotification.frequency === 'once' ? newNotification.customDate : undefined,
             frequency: newNotification.schedule === 'custom' ? newNotification.frequency : undefined,
-            weekday: newNotification.schedule === 'custom' ? newNotification.weekday : undefined
+            weekday: newNotification.schedule === 'custom' ? newNotification.weekday : undefined,
+            pendingDays: newNotification.type === 'pending_repairs' ? newNotification.pendingDays : undefined
           }
         })
       });
@@ -187,6 +190,7 @@ export default function AutoNotificationScheduler() {
           customDate: new Date().toISOString().split('T')[0],
           frequency: 'daily',
           weekday: 1,
+          pendingDays: 3,
           testRun: false 
         });
         
@@ -631,6 +635,22 @@ export default function AutoNotificationScheduler() {
                 </MenuItem>
               </Select>
             </FormControl>
+
+            {newNotification.type === 'pending_repairs' && (
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                label="Días sin actualizar"
+                value={newNotification.pendingDays}
+                onChange={(event) => setNewNotification(prev => ({
+                  ...prev,
+                  pendingDays: Math.max(0, Math.min(3650, Number(event.target.value) || 0))
+                }))}
+                inputProps={{ min: 0, max: 3650 }}
+                helperText="Por defecto: 3 días. Usa 0 para avisar de cualquier reparación pendiente."
+              />
+            )}
 
             <FormControl fullWidth size="small">
               <InputLabel>Horario</InputLabel>

@@ -58,7 +58,7 @@ export const useProducts = (): UseProductsResult => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeBranchId]);
 
   const createProduct = useCallback(async (data: CreateProductRequest): Promise<Product | null> => {
     setLoading(true);
@@ -93,7 +93,7 @@ export const useProducts = (): UseProductsResult => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeBranchId]);
 
   const updateProduct = useCallback(async (id: string, data: UpdateProductRequest): Promise<Product | null> => {
     setLoading(true);
@@ -165,7 +165,7 @@ export const useProducts = (): UseProductsResult => {
       const response = await fetch(`/api/products/${id}/stock`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity, operation }),
+        body: JSON.stringify({ quantity, operation, branchId: activeBranchId }),
       });
 
       const result = await response.json();
@@ -186,7 +186,7 @@ export const useProducts = (): UseProductsResult => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeBranchId]);
 
   const refreshProducts = useCallback(async () => {
     await fetchProducts();
