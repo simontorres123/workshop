@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -19,7 +19,12 @@ import {
   Alert,
   Skeleton,
   TextField,
+  InputAdornment,
   Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
   useMediaQuery,
   useTheme
 } from '@mui/material';
@@ -108,6 +113,54 @@ const getStatusLabel = (status: string) => {
       return status;
   }
 };
+
+function RepairActionsMenu({
+  row,
+  onView,
+  onEdit,
+  onNext,
+  onNotify,
+  onDelete,
+}: {
+  row: RepairOrder;
+  onView: (id: string) => void;
+  onEdit: (id: string) => void;
+  onNext: (id: string) => void;
+  onNotify: (order: RepairOrder) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const close = () => setAnchorEl(null);
+  const run = (action: () => void) => { close(); action(); };
+
+  return <>
+    <IconButton size="small" aria-label={`Acciones de ${row.folio}`} onClick={(event) => setAnchorEl(event.currentTarget)}>
+      <Icon icon="eva:more-vertical-fill" width={20} />
+    </IconButton>
+    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={close}>
+      <MenuItem onClick={() => run(() => onView(row.id))}>
+        <ListItemIcon><Icon icon="eva:eye-outline" width={20} /></ListItemIcon>
+        <ListItemText>Ver detalles</ListItemText>
+      </MenuItem>
+      <MenuItem onClick={() => run(() => onEdit(row.id))}>
+        <ListItemIcon><Icon icon="eva:edit-outline" width={20} /></ListItemIcon>
+        <ListItemText>Editar orden</ListItemText>
+      </MenuItem>
+      <MenuItem onClick={() => run(() => onNext(row.id))}>
+        <ListItemIcon><Icon icon="eva:arrow-forward-outline" width={20} color="primary" /></ListItemIcon>
+        <ListItemText>Siguiente paso</ListItemText>
+      </MenuItem>
+      {canNotifyRepairOwner(row) && <MenuItem onClick={() => run(() => onNotify(row))}>
+        <ListItemIcon><Icon icon="logos:whatsapp-icon" width={20} /></ListItemIcon>
+        <ListItemText>Avisar por WhatsApp</ListItemText>
+      </MenuItem>}
+      <MenuItem onClick={() => run(() => onDelete(row.id))} sx={{ color: 'error.main' }}>
+        <ListItemIcon><Icon icon="eva:trash-2-outline" width={20} color="error" /></ListItemIcon>
+        <ListItemText>Eliminar orden</ListItemText>
+      </MenuItem>
+    </Menu>
+  </>;
+}
 
 export default function RepairsPage() {
   const theme = useTheme();
@@ -277,6 +330,25 @@ export default function RepairsPage() {
   const completedOrders = orders.filter(o => 
     ['repaired', 'completed'].includes(o.status.toLowerCase())
   ).length;
+  const [searchTerm, setSearchTerm] = useState('');
+  const filteredOrders = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return orders;
+    return orders.filter((order) => [
+      order.folio,
+      order.clientName,
+      order.clientPhone,
+      order.clientEmail,
+      order.deviceType,
+      order.deviceBrand,
+      order.deviceModel,
+      order.deviceSerial,
+      order.deviceDescription,
+      order.problemDescription,
+      order.status,
+      getStatusLabel(order.status),
+    ].some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [orders, searchTerm]);
 
   // Columnas para móvil (información esencial con todas las acciones)
   const mobileColumns = [
@@ -325,70 +397,9 @@ export default function RepairsPage() {
     {
       field: 'actions',
       headerName: 'Acciones',
-      width: 156,
+      width: 84,
       sortable: false,
-      renderCell: (params: any) => (
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          gap: 0.5,
-          py: 0.5
-        }}>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <Tooltip title="Ver" arrow>
-              <IconButton 
-                size="small" 
-                onClick={() => handleViewOrder(params.row.id)}
-                sx={{ minWidth: 28, minHeight: 28 }}
-              >
-                <Icon icon="eva:eye-outline" width={16} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Editar" arrow>
-              <IconButton 
-                size="small" 
-                onClick={() => handleEditOrder(params.row.id)}
-                sx={{ minWidth: 28, minHeight: 28 }}
-              >
-                <Icon icon="eva:edit-outline" width={16} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <Tooltip title="Siguiente paso" arrow>
-              <IconButton 
-                size="small" 
-                onClick={() => handleChangeStatus(params.row.id)}
-                color="primary"
-                sx={{ minWidth: 28, minHeight: 28 }}
-              >
-                <Icon icon="eva:arrow-forward-outline" width={16} />
-              </IconButton>
-            </Tooltip>
-            {canNotifyRepairOwner(params.row) && (
-              <Tooltip title="Avisar al cliente por WhatsApp" arrow>
-                <IconButton
-                  size="small"
-                  onClick={() => openRepairReadyWhatsApp(params.row)}
-                  sx={{ color: '#25D366', minWidth: 28, minHeight: 28 }}
-                >
-                  <Icon icon="logos:whatsapp-icon" width={16} />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Tooltip title="Eliminar" arrow>
-              <IconButton 
-                size="small" 
-                onClick={() => handleDeleteOrder(params.row.id)}
-                color="error"
-                sx={{ minWidth: 28, minHeight: 28 }}
-              >
-                <Icon icon="eva:trash-2-outline" width={16} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      )
+      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onDelete={handleDeleteOrder} />
     }
   ];
 
@@ -452,48 +463,9 @@ export default function RepairsPage() {
     {
       field: 'actions',
       headerName: 'Acciones',
-      width: 160,
+      width: 84,
       sortable: false,
-      renderCell: (params: any) => (
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Tooltip title="Ver detalles" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleViewOrder(params.row.id)}
-            >
-              <Icon icon="eva:eye-outline" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Editar" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleEditOrder(params.row.id)}
-            >
-              <Icon icon="eva:edit-outline" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Siguiente paso" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleChangeStatus(params.row.id)}
-              color="primary"
-            >
-              <Icon icon="eva:arrow-forward-outline" />
-            </IconButton>
-          </Tooltip>
-          {canNotifyRepairOwner(params.row) && (
-            <Tooltip title="Avisar al cliente por WhatsApp" arrow>
-              <IconButton
-                size="small"
-                onClick={() => openRepairReadyWhatsApp(params.row)}
-                sx={{ color: '#25D366' }}
-              >
-                <Icon icon="logos:whatsapp-icon" />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
-      )
+      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onDelete={handleDeleteOrder} />
     }
   ];
 
@@ -575,57 +547,9 @@ export default function RepairsPage() {
     {
       field: 'actions',
       headerName: 'Acciones',
-      width: 200,
+      width: 84,
       sortable: false,
-      renderCell: (params: any) => (
-        <Box>
-          <Tooltip title="Ver detalles de la orden" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleViewOrder(params.row.id)}
-            >
-              <Icon icon="eva:eye-outline" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Editar información de la orden" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleEditOrder(params.row.id)}
-            >
-              <Icon icon="eva:edit-outline" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Siguiente paso de la reparación" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleChangeStatus(params.row.id)}
-              color="primary"
-            >
-              <Icon icon="eva:arrow-forward-outline" />
-            </IconButton>
-          </Tooltip>
-          {canNotifyRepairOwner(params.row) && (
-            <Tooltip title="Avisar al cliente por WhatsApp" arrow>
-              <IconButton
-                size="small"
-                onClick={() => openRepairReadyWhatsApp(params.row)}
-                sx={{ color: '#25D366' }}
-              >
-                <Icon icon="logos:whatsapp-icon" />
-              </IconButton>
-            </Tooltip>
-          )}
-          <Tooltip title="Eliminar orden permanentemente" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => handleDeleteOrder(params.row.id)}
-              color="error"
-            >
-              <Icon icon="eva:trash-2-outline" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )
+      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onDelete={handleDeleteOrder} />
     }
   ];
 
@@ -707,10 +631,23 @@ export default function RepairsPage() {
         {/* Orders Table */}
         <Card>
           <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6">
-                Órdenes de Reparación ({orders.length})
-              </Typography>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2, mb: 3 }}>
+              <Box>
+                <Typography variant="h6">
+                  Órdenes de Reparación ({filteredOrders.length})
+                </Typography>
+                {searchTerm && <Typography variant="caption" color="text.secondary">Mostrando coincidencias de {orders.length} órdenes</Typography>}
+              </Box>
+              <TextField
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                size="small"
+                fullWidth
+                placeholder="Buscar por folio, cliente, teléfono o aparato"
+                aria-label="Buscar órdenes de reparación"
+                sx={{ maxWidth: { sm: 390 } }}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Icon icon="eva:search-outline" width={19} /></InputAdornment> }}
+              />
             </Box>
             
             {loading ? (
@@ -731,9 +668,22 @@ export default function RepairsPage() {
                   Crea tu primera orden de reparación
                 </Typography>
               </Box>
+            ) : filteredOrders.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <Icon icon="eva:search-outline" width={56} height={56} color="text.secondary" />
+                <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
+                  No encontramos órdenes
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Prueba con otro folio, cliente, teléfono o aparato.
+                </Typography>
+                <Button variant="text" onClick={() => setSearchTerm('')} sx={{ mt: 1 }}>
+                  Limpiar búsqueda
+                </Button>
+              </Box>
             ) : (
               <DataTable
-                rows={orders}
+                rows={filteredOrders}
                 columns={columns}
                 getRowId={(row) => row.id}
                 initialState={{

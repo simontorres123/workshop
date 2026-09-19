@@ -1,5 +1,5 @@
 // Service Worker para notificaciones push
-const CACHE_NAME = 'workshop-v3';
+const CACHE_NAME = 'workshop-v4';
 
 // Instalar service worker
 self.addEventListener('install', (event) => {
@@ -48,6 +48,15 @@ self.addEventListener('activate', (event) => {
 
 // Interceptar requests para cache
 self.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
+
+  // Iconify obtiene los paquetes de iconos desde estos proveedores externos.
+  // No debemos interceptarlos: si el proveedor falla, el navegador gestiona
+  // correctamente el error de red/CORS sin romper respondWith().
+  if (['api.iconify.design', 'api.simplesvg.com', 'api.unisvg.com'].includes(requestUrl.hostname)) {
+    return;
+  }
+
   // Solo manejar GET requests
   if (event.request.method !== 'GET') {
     return;
@@ -66,6 +75,10 @@ self.addEventListener('fetch', (event) => {
           if (event.request.url.includes('.html') || event.request.mode === 'navigate') {
             return new Response('Offline', { status: 200, statusText: 'OK' });
           }
+
+          // respondWith() nunca puede recibir undefined. Para recursos que no
+          // son navegación devolvemos una respuesta de red vacía y válida.
+          return new Response('', { status: 503, statusText: 'Offline' });
         });
       })
   );

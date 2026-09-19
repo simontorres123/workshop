@@ -126,7 +126,9 @@ export function usePushNotifications() {
     if (!isSupported) return null;
 
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      // Versionar la URL fuerza al navegador a descargar el Service Worker
+      // actualizado cuando cambia la estrategia de red/cache.
+      const registration = await navigator.serviceWorker.register('/sw.js?v=4', { updateViaCache: 'none' });
       console.log('✅ Service Worker registered:', registration);
       
       // Esperar a que esté activo
