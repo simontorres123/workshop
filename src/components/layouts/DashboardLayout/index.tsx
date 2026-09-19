@@ -6,7 +6,6 @@ import {
   Box, 
   AppBar, 
   Toolbar, 
-  Typography, 
   Drawer, 
   IconButton,
   useMediaQuery,
@@ -27,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import BranchSelector from "./BranchSelector";
 import NotificationBell from "@/components/ui/NotificationBell";
 import OrganizationLogo from "@/components/branding/OrganizationLogo";
+import VirtualAssistant from "@/components/chatbot/VirtualAssistant";
 
 const DRAWER_WIDTH = 280;
 const APPBAR_MOBILE = 64;
@@ -123,9 +123,6 @@ export default function DashboardLayout({
 
           <Stack direction="row" alignItems="center" spacing={1.25} sx={{ flexGrow: 1, minWidth: 0 }}>
             <OrganizationLogo size={34} alt="Logo del taller" sx={{ borderRadius: 1.5, flexShrink: 0 }} />
-            <Typography variant="h6" noWrap sx={{ color: 'text.primary' }}>
-              Workshop Dashboard
-            </Typography>
           </Stack>
 
           <BranchSelector />
@@ -134,7 +131,9 @@ export default function DashboardLayout({
             direction="row"
             alignItems="center"
             spacing={{ xs: 0.5, sm: 1.5 }}
+            sx={{ ml: { xs: 0.75, sm: 1.5 } }}
           >
+            <VirtualAssistant />
             <NotificationBell />
 
             <IconButton
