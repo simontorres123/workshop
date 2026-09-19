@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { supabaseAdmin } from '@/lib/supabase/client';
+import { getAppUrl } from '@/lib/app-url';
 import { emailService } from '@/services/email.service';
 
 function generateTemporaryPassword(): string {
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
       type: 'magiclink',
       email: organizerEmail,
       options: {
-        redirectTo: `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : new URL(request.url).origin}/dashboard`
+        redirectTo: `${getAppUrl(new URL(request.url).origin).origin}/dashboard`
       }
     });
 

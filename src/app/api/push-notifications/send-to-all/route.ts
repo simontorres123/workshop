@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
     const notification = {
       title: `📱 ${title}`,
       body: `${body}\n\nEnviado desde: ${sourceDevice || 'Dispositivo móvil'}`,
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: '/brand/workshop-mark.png',
+      badge: '/brand/workshop-mark.png',
       tag: `mobile-notification-${Date.now()}`,
       data: {
         source: 'mobile',
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         {
           action: 'view',
           title: 'Ver detalles',
-          icon: '/favicon.ico'
+          icon: '/brand/workshop-mark.png'
         },
         {
           action: 'dismiss',

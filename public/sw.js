@@ -9,7 +9,7 @@ self.addEventListener('install', (event) => {
       .then((cache) => {
         console.log('📦 Service Worker ready - skipping cache for simplicity');
         // Solo cachear el favicon que sabemos que existe
-        return cache.add('/favicon.ico').catch(() => {
+        return cache.add('/brand/workshop-mark.png').catch(() => {
           console.log('ℹ️ Favicon not cached, continuing anyway');
           return Promise.resolve();
         });
@@ -101,14 +101,14 @@ self.addEventListener('push', (event) => {
     notificationData = {
       title: 'Workshop Pro',
       body: event.data.text() || 'Nueva notificación',
-      icon: '/favicon.ico',
+      icon: '/brand/workshop-mark.png',
     };
   }
 
   const options = {
     body: notificationData.body,
-    icon: notificationData.icon || '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: notificationData.icon || '/brand/workshop-mark.png',
+    badge: '/brand/workshop-mark.png',
     vibrate: notificationData.vibrate || [100, 50, 100],
     data: notificationData.data || { url: '/dashboard' },
     tag: notificationData.tag || 'workshop-notification',
@@ -119,12 +119,12 @@ self.addEventListener('push', (event) => {
       {
         action: 'view',
         title: 'Ver detalles',
-        icon: '/favicon.ico'
+        icon: '/brand/workshop-mark.png'
       },
       {
         action: 'dismiss',
         title: 'Descartar',
-        icon: '/favicon.ico'
+        icon: '/brand/workshop-mark.png'
       }
     ]
   };

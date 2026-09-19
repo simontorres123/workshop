@@ -46,6 +46,23 @@ export async function PATCH(
     }
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
 
+    if (status === 'completed') {
+      const { data: payment, error: paymentError } = await supabaseAdmin
+        .from('workshop_sales')
+        .select('id')
+        .eq('organization_id', ctx.organizationId)
+        .eq('repair_id', id)
+        .eq('status', 'paid')
+        .maybeSingle();
+      if (paymentError) throw paymentError;
+      if (!payment) {
+        return NextResponse.json(
+          { success: false, error: 'La orden no puede marcarse como completada hasta registrar el pago total.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const reservedPartIds: string[] = [];
 
     const releaseReservedParts = async () => {

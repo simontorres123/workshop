@@ -4,6 +4,7 @@ import { CreateRepairOrderRequest, RepairOrderSearchFilters } from '@/types/repa
 import { TenantContext } from '@/repositories/supabase-repair-order.repository';
 import { isValidPhoneNumber, normalizePhoneNumber } from '@/utils/phone';
 import { getTenantContext } from '@/lib/auth/tenant-context';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,10 +32,36 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await repairOrderRepository.searchWithPagination(filters);
+    const repairIds = result.orders.map(order => order.id);
+    const { data: payments, error: paymentsError } = repairIds.length
+      ? await supabaseAdmin
+        .from('workshop_sales')
+        .select('id, repair_id, sale_number, total, payment_method, created_at, status')
+        .eq('organization_id', ctx?.organizationId || '')
+        .in('repair_id', repairIds)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+      : { data: [], error: null };
+    if (paymentsError) throw paymentsError;
+    const paymentByRepair = new Map((payments || []).map(payment => [payment.repair_id, payment]));
+    const orders = result.orders.map(order => {
+      const payment = paymentByRepair.get(order.id);
+      return payment ? {
+        ...order,
+        paymentStatus: 'paid',
+        payment: {
+          saleId: payment.id,
+          saleNumber: payment.sale_number,
+          amount: Number(payment.total || 0),
+          paymentMethod: payment.payment_method,
+          paidAt: new Date(payment.created_at),
+        },
+      } : order;
+    });
     
     return NextResponse.json({
       success: true,
-      data: result.orders,
+      data: orders,
       total: result.total
     });
   } catch (error) {

@@ -3,6 +3,7 @@ import { RepositoryFactory } from '@/repositories/repository.factory';
 import { UpdateRepairOrderRequest } from '@/types/repair';
 import { blobStorageService } from '@/services/blob-storage.service';
 import { getTenantContext } from '@/lib/auth/tenant-context';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 export async function GET(
   request: NextRequest,
@@ -22,9 +23,29 @@ export async function GET(
       );
     }
     
+    const { data: payment } = ctx ? await supabaseAdmin
+      .from('workshop_sales')
+      .select('id, sale_number, total, payment_method, created_at, status')
+      .eq('organization_id', ctx.organizationId)
+      .eq('repair_id', id)
+      .eq('status', 'paid')
+      .order('created_at', { ascending: false })
+      .maybeSingle() : { data: null };
+    const data = payment ? {
+      ...order,
+      paymentStatus: 'paid',
+      payment: {
+        saleId: payment.id,
+        saleNumber: payment.sale_number,
+        amount: Number(payment.total || 0),
+        paymentMethod: payment.payment_method,
+        paidAt: new Date(payment.created_at),
+      },
+    } : order;
+
     return NextResponse.json({
       success: true,
-      data: order
+      data
     });
   } catch (error) {
     console.error('Error fetching repair order:', error);

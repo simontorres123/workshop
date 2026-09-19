@@ -26,6 +26,7 @@ import SidebarItems from "./SidebarItems";
 import { useAuth } from "@/hooks/useAuth";
 import BranchSelector from "./BranchSelector";
 import NotificationBell from "@/components/ui/NotificationBell";
+import OrganizationLogo from "@/components/branding/OrganizationLogo";
 
 const DRAWER_WIDTH = 280;
 const APPBAR_MOBILE = 64;
@@ -120,9 +121,12 @@ export default function DashboardLayout({
             <Icon icon="eva:menu-fill" />
           </IconButton>
 
-          <Typography variant="h6" sx={{ flexGrow: 1, color: 'text.primary' }}>
-            Workshop Dashboard
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1.25} sx={{ flexGrow: 1, minWidth: 0 }}>
+            <OrganizationLogo size={34} alt="Logo del taller" sx={{ borderRadius: 1.5, flexShrink: 0 }} />
+            <Typography variant="h6" noWrap sx={{ color: 'text.primary' }}>
+              Workshop Dashboard
+            </Typography>
+          </Stack>
 
           <BranchSelector />
 

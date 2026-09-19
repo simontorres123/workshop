@@ -34,6 +34,7 @@ export interface RepairOrder {
   type: 'repair_order';
   folio: string; // Folio único generado automáticamente
   trackingUrl?: string; // URL pública guardada para consultar el estatus
+  organizationId?: string;
   clientId?: string;
   clientName: string;
   clientPhone: string;
@@ -60,6 +61,7 @@ export interface RepairOrder {
   // Estado y fechas
   status: string;
   paymentStatus?: string;
+  payment?: RepairPayment;
   estimatedDate?: Date;
   completedAt?: Date;
   deliveredAt?: Date;
@@ -83,6 +85,14 @@ export interface RepairOrder {
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string; // ID del usuario que creó la orden
+}
+
+export interface RepairPayment {
+  saleId: string;
+  saleNumber: string;
+  amount: number;
+  paymentMethod: 'cash' | 'card' | 'transfer' | 'mixed' | string;
+  paidAt: Date;
 }
 
 export interface RepairNote {
@@ -234,6 +244,7 @@ export interface PublicRepairStatus {
   // Payment info for transparency
   totalCost?: number;
   advancePayment?: number;
+  organization?: { name: string; logoUrl?: string | null } | null;
 }
 
 // Estados con sus mensajes y colores para la UI

@@ -36,7 +36,6 @@ import {
 } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
 import { Icon } from '@iconify/react';
-import { getSystemConfiguration, updateSystemConfiguration } from '@/lib/database/dashboard-queries';
 import PushNotificationSettings from '@/components/ui/PushNotificationSettings';
 import ExternalServicesManager from './ExternalServicesManager';
 
@@ -71,6 +70,11 @@ interface SystemConfig {
     address: string;
     workingHours: string;
   };
+  tax: {
+    enabled: boolean;
+    rate: number;
+    pricesIncludeTax: boolean;
+  };
 }
 
 export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: ConfigurationPanelProps) {
@@ -91,8 +95,10 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
     try {
       setLoading(true);
       setError(null);
-      const systemConfig = await getSystemConfiguration();
-      setConfig(systemConfig);
+      const response = await fetch('/api/system/configuration');
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Error cargando configuración');
+      setConfig(result.data);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Error cargando configuración');
     } finally {
@@ -122,7 +128,9 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
       setSaving(true);
       setError(null);
 
-      await updateSystemConfiguration(config);
+      const response = await fetch('/api/system/configuration', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Error guardando configuración');
       
       if (onConfigUpdated) {
         onConfigUpdated(config);
@@ -217,6 +225,11 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
             <Tab 
               label="Garantías" 
               icon={<Icon icon="eva:shield-outline" width={20} />} 
+              iconPosition="start"
+            />
+            <Tab
+              label="Impuestos"
+              icon={<Icon icon="eva:file-text-outline" width={20} />}
               iconPosition="start"
             />
             <Tab 
@@ -436,8 +449,39 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
           </Grid>
         </TabPanel>
 
-        {/* Tab 3: Configuración de Notificaciones */}
+        {/* Tab 3: Configuración de Impuestos */}
         <TabPanel value={activeTab} index={2}>
+          <Card variant="outlined">
+            <CardHeader title="Configuración de impuestos" subheader="Define cómo se muestran y calculan los impuestos en las ventas." />
+            <CardContent>
+              <Stack spacing={2}>
+                <FormControlLabel
+                  control={<Switch checked={config.tax.enabled} onChange={(e) => handleConfigChange('tax', 'enabled', e.target.checked)} />}
+                  label="Aplicar IVA a las ventas"
+                />
+                <TextField
+                  label="Tasa interna"
+                  type="number"
+                  value={config.tax.rate * 100}
+                  onChange={(e) => handleConfigChange('tax', 'rate', Math.max(0, Number(e.target.value) || 0) / 100)}
+                  inputProps={{ min: 0, max: 100, step: 0.01 }}
+                  helperText="Se utiliza para desglosar el precio final. No se muestra en comprobantes."
+                  disabled={!config.tax.enabled}
+                  sx={{ maxWidth: 320 }}
+                  InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+                />
+                <FormControlLabel
+                  control={<Switch checked={config.tax.pricesIncludeTax} onChange={(e) => handleConfigChange('tax', 'pricesIncludeTax', e.target.checked)} />}
+                  label="Los precios de venta ya incluyen IVA"
+                />
+                <Alert severity="info">El comprobante mostrará únicamente Valor de productos, IVA y Total.</Alert>
+              </Stack>
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* Tab 4: Configuración de Notificaciones */}
+        <TabPanel value={activeTab} index={3}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Card variant="outlined">
@@ -560,8 +604,8 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
           </Grid>
         </TabPanel>
 
-        {/* Tab 4: Información del Negocio */}
-        <TabPanel value={activeTab} index={3}>
+        {/* Tab 5: Información del Negocio */}
+        <TabPanel value={activeTab} index={4}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Card variant="outlined">
@@ -639,7 +683,7 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
         </TabPanel>
 
         {/* Tab 5: Servicios de Notificación */}
-        <TabPanel value={activeTab} index={4}>
+        <TabPanel value={activeTab} index={5}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

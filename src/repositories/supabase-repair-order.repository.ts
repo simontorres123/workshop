@@ -477,6 +477,7 @@ export class SupabaseRepairOrderRepository {
       type: 'repair_order',
       folio: db.folio,
       trackingUrl: db.tracking_url || undefined,
+      organizationId: db.organization_id || undefined,
       branchId: db.branch_id || undefined,
       clientId: db.client_id || undefined,
       clientDeviceId: (db as any).client_device_id || undefined,

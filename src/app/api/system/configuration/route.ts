@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSystemConfiguration, updateSystemConfiguration } from '@/lib/database/dashboard-queries';
+import { getTenantContext } from '@/lib/auth/tenant-context';
+import { supabaseAdmin } from '@/lib/supabase/client';
+
+const DEFAULT_CONFIG = {
+  storage: { costPerDay: 50, freeDays: 7, warningDays: 15, criticalDays: 3 },
+  warranty: { defaultPeriodMonths: 3, warningDays: 30, criticalDays: 7 },
+  notifications: { email: true, sms: false, whatsapp: true, inApp: true },
+  business: { name: 'TechRepair Pro', phone: '555-REPAIR', email: 'info@techrepair.com', address: '', workingHours: '' },
+  tax: { enabled: true, rate: 0.16, pricesIncludeTax: true }
+};
+
+async function readConfiguration(request: NextRequest) {
+  const context = await getTenantContext(request);
+  if (!context || !context.organizationId) return null;
+  const { data, error } = await supabaseAdmin.from('organizations').select('settings').eq('id', context.organizationId).single();
+  if (error) throw error;
+  const stored = data?.settings && typeof data.settings === 'object' ? data.settings : {};
+  return { context, config: { ...DEFAULT_CONFIG, ...stored, tax: { ...DEFAULT_CONFIG.tax, ...(stored as Record<string, any>).tax } } };
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const config = await getSystemConfiguration();
+    const result = await readConfiguration(request);
+    if (!result) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
     return NextResponse.json({
       success: true,
-      data: config
+      data: result.config
     });
 
   } catch (error) {
@@ -22,10 +41,14 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const newConfig = await request.json();
+    const result = await readConfiguration(request);
+    if (!result) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+    if (!['org_admin', 'super_admin'].includes(result.context.role)) return NextResponse.json({ success: false, error: 'No tienes permisos para cambiar la configuración' }, { status: 403 });
+    const newConfig = request.body ? await request.json() : {};
+    const mergedConfig = { ...result.config, ...newConfig, tax: { ...result.config.tax, ...(newConfig.tax || {}) } };
 
     // Validar configuración
-    const validationResult = validateConfiguration(newConfig);
+    const validationResult = validateConfiguration(mergedConfig);
     if (!validationResult.valid) {
       return NextResponse.json({
         success: false,
@@ -35,12 +58,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Actualizar configuración
-    const result = await updateSystemConfiguration(newConfig);
+    const { error } = await supabaseAdmin.from('organizations').update({ settings: mergedConfig, updated_at: new Date().toISOString() }).eq('id', result.context.organizationId);
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,
       message: 'Configuración actualizada exitosamente',
-      data: result
+      data: mergedConfig
     });
 
   } catch (error) {
@@ -60,45 +84,23 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'reset_to_defaults':
-        // Restablecer configuración por defecto
-        const defaultConfig = {
-          storage: {
-            costPerDay: 50,
-            freeDays: 7,
-            warningDays: 15,
-            criticalDays: 3
-          },
-          warranty: {
-            defaultPeriodMonths: 3,
-            warningDays: 30,
-            criticalDays: 7
-          },
-          notifications: {
-            email: true,
-            sms: false,
-            whatsapp: true,
-            inApp: true
-          },
-          business: {
-            name: 'TechRepair Pro',
-            phone: '555-REPAIR',
-            email: 'info@techrepair.com',
-            address: 'Av. Reparaciones 123, Ciudad',
-            workingHours: 'Lun-Vie 9:00-18:00, Sáb 9:00-14:00'
-          }
-        };
-
-        await updateSystemConfiguration(defaultConfig);
+        const result = await readConfiguration(request);
+        if (!result) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        if (!['org_admin', 'super_admin'].includes(result.context.role)) return NextResponse.json({ success: false, error: 'No tienes permisos para cambiar la configuración' }, { status: 403 });
+        await supabaseAdmin.from('organizations').update({ settings: DEFAULT_CONFIG, updated_at: new Date().toISOString() }).eq('id', result.context.organizationId);
 
         return NextResponse.json({
           success: true,
           message: 'Configuración restablecida a valores por defecto',
-          data: defaultConfig
+          data: DEFAULT_CONFIG
         });
 
       case 'update_section':
         // Actualizar solo una sección
-        const currentConfig = await getSystemConfiguration();
+        const sectionResult = await readConfiguration(request);
+        if (!sectionResult) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        if (!['org_admin', 'super_admin'].includes(sectionResult.context.role)) return NextResponse.json({ success: false, error: 'No tienes permisos para cambiar la configuración' }, { status: 403 });
+        const currentConfig = sectionResult.config;
         const updatedConfig = {
           ...currentConfig,
           [section]: {
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
           }
         };
 
-        await updateSystemConfiguration(updatedConfig);
+        await supabaseAdmin.from('organizations').update({ settings: updatedConfig, updated_at: new Date().toISOString() }).eq('id', sectionResult.context.organizationId);
 
         return NextResponse.json({
           success: true,

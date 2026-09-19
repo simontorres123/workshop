@@ -57,6 +57,13 @@ const getStatusLabel = (status: string) => {
   }
 };
 
+const paymentMethodLabel: Record<string, string> = {
+  cash: 'Efectivo',
+  card: 'Tarjeta',
+  transfer: 'Transferencia',
+  mixed: 'Pago mixto',
+};
+
 interface RepairOrderDetailsProps {
   order: RepairOrder | null;
   open: boolean;
@@ -132,6 +139,32 @@ export default function RepairOrderDetails({
       
       <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'background.default' }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+          {order.payment && (
+            <Card variant="outlined" sx={{ borderColor: 'success.main', bgcolor: 'success.50' }}>
+              <CardHeader
+                avatar={<Icon icon="eva:checkmark-circle-2-outline" width={22} color="success" />}
+                title="Pago registrado"
+                titleTypographyProps={{ variant: 'subtitle1', fontWeight: 700, color: 'success.dark' }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Monto pagado</Typography>
+                    <Typography variant="body2" fontWeight={700}>${Number(order.payment.amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Método de pago</Typography>
+                    <Typography variant="body2" fontWeight={700}>{paymentMethodLabel[order.payment.paymentMethod] || order.payment.paymentMethod}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Fecha de pago</Typography>
+                    <Typography variant="body2" fontWeight={700}>{format(new Date(order.payment.paidAt), 'dd/MM/yyyy HH:mm', { locale: es })}</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Información del Cliente */}
           <Card variant="outlined">

@@ -30,6 +30,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { PublicRepairStatus, REPAIR_STATUS_CONFIG } from '@/types';
 import { usePublicTracking } from '@/hooks/useRepairOrders';
 import { formatDate, formatDateTime } from '@/utils/date';
+import OrganizationLogo from '@/components/branding/OrganizationLogo';
 
 // Orden de estados según el flujo real de reparaciones
 const STATUS_ORDER = [
@@ -245,13 +246,19 @@ export default function TrackResultsPage() {
         
         <Paper elevation={0} sx={{ p: 4, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <OrganizationLogo logoUrl={repairOrder.organization?.logoUrl} size={48} alt={repairOrder.organization?.name || 'Workshop'} sx={{ borderRadius: 1.5 }} />
+              <Box>
               <Typography variant="h4" component="h1" gutterBottom>
                 Folio: {repairOrder.folio}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {repairOrder.organization?.name || 'Workshop'}
               </Typography>
               <Typography variant="h6" color="text.secondary">
                 {repairOrder.device.brand} {repairOrder.device.model} - {repairOrder.device.type}
               </Typography>
+              </Box>
             </Box>
             
             <Box sx={{ textAlign: 'right' }}>

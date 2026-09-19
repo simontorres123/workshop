@@ -18,11 +18,13 @@ import {
   Fade,
   Grow,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  Stack
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/store/auth.store';
 import { authService } from '@/services/auth.service';
+import OrganizationLogo from '@/components/branding/OrganizationLogo';
 
 export default function ProfilePage() {
   const { user, profile } = useAuthStore();
@@ -32,6 +34,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>((profile as any)?.organizations?.logo_url || null);
+  const [logoSaving, setLogoSaving] = useState(false);
 
   const getRoleLabel = (role: string) => {
     const roles: Record<string, { label: string; color: 'error' | 'primary' | 'info' | 'success' }> = {
@@ -66,6 +70,51 @@ export default function ProfilePage() {
       setError(err.message || 'Error al cambiar la contraseña.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setError('El logo debe ser PNG, JPG o WebP.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('El logo no puede superar 2 MB.');
+      return;
+    }
+    const body = new FormData();
+    body.append('logo', file);
+    try {
+      setLogoSaving(true);
+      const response = await fetch('/api/organization/branding', { method: 'POST', body });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'No se pudo guardar el logo.');
+      setLogoUrl(json.logoUrl || null);
+      setSuccessMsg('Logo del taller actualizado.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el logo.');
+    } finally {
+      setLogoSaving(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    try {
+      setLogoSaving(true);
+      const body = new FormData();
+      body.append('removeLogo', 'true');
+      const response = await fetch('/api/organization/branding', { method: 'POST', body });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'No se pudo quitar el logo.');
+      setLogoUrl(null);
+      setSuccessMsg('Se restauró el logo de Workshop.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo quitar el logo.');
+    } finally {
+      setLogoSaving(false);
     }
   };
 
@@ -179,6 +228,36 @@ export default function ProfilePage() {
               </Card>
             </Box>
           </Grow>
+
+          {(profile as any)?.role === 'org_admin' && (
+            <Grow in timeout={900}>
+              <Box sx={{ flex: 1.2 }}>
+                <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, height: '100%', background: 'rgba(255, 255, 255, 0.6)', backdropFilter: 'blur(20px)' }}>
+                  <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+                    <Typography variant="h6" fontWeight="bold" gutterBottom>Identidad del taller</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Sube el logo que aparecerá en el encabezado, comprobantes y seguimiento del cliente. Si no hay uno, se usará el logo de Workshop.
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                      <Box sx={{ width: 76, height: 76, borderRadius: 3, border: '1px solid', borderColor: 'divider', display: 'grid', placeItems: 'center', bgcolor: 'background.paper' }}>
+                        <OrganizationLogo logoUrl={logoUrl} size={60} alt="Logo del taller" />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2">Logo actual</Typography>
+                        <Typography variant="caption" color="text.secondary">PNG, JPG o WebP · máximo 2 MB</Typography>
+                      </Box>
+                    </Box>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                      <Button component="label" variant="contained" disabled={logoSaving} startIcon={logoSaving ? <CircularProgress size={18} color="inherit" /> : <Icon icon="eva:cloud-upload-outline" />}>
+                        Subir logo<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoChange} />
+                      </Button>
+                      {logoUrl && <Button variant="outlined" color="inherit" onClick={handleRemoveLogo} disabled={logoSaving}>Usar logo predeterminado</Button>}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Box>
+            </Grow>
+          )}
 
           {/* Change Password Card */}
           <Grow in timeout={1000}>

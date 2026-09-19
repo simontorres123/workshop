@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepositoryFactory } from '@/repositories/repository.factory';
 import { StatusNote } from '@/types/repair';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 const repairOrderRepository = RepositoryFactory.getRepairOrders();
 
@@ -34,6 +35,10 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const { data: organization } = order.organizationId
+      ? await supabaseAdmin.from('organizations').select('name, logo_url').eq('id', order.organizationId).maybeSingle()
+      : { data: null };
 
     // Procesar notas del historial de estados
     interface PublicNote {
@@ -76,7 +81,8 @@ export async function GET(
       totalCost: order.totalCost,
       advancePayment: order.advancePayment,
       createdAt: order.createdAt,
-      updatedAt: order.updatedAt
+      updatedAt: order.updatedAt,
+      organization: organization ? { name: organization.name, logoUrl: organization.logo_url } : null
     };
 
     return NextResponse.json({

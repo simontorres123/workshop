@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
     const notificationPayload = {
       title,
       body,
-      icon: icon || '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: icon || '/brand/workshop-mark.png',
+      badge: '/brand/workshop-mark.png',
       data: data || { url: '/dashboard', type: 'test' },
       tag: tag || `notification-${timestamp}`,
       timestamp,

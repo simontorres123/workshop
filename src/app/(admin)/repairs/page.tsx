@@ -114,12 +114,22 @@ const getStatusLabel = (status: string) => {
   }
 };
 
+const paymentMethodLabel: Record<string, string> = {
+  cash: 'Efectivo',
+  card: 'Tarjeta',
+  transfer: 'Transferencia',
+  mixed: 'Pago mixto',
+};
+
+const isRepairPaid = (order: RepairOrder) => order.paymentStatus === 'paid' || Boolean(order.payment);
+
 function RepairActionsMenu({
   row,
   onView,
   onEdit,
   onNext,
   onNotify,
+  onCharge,
   onDelete,
 }: {
   row: RepairOrder;
@@ -127,6 +137,7 @@ function RepairActionsMenu({
   onEdit: (id: string) => void;
   onNext: (id: string) => void;
   onNotify: (order: RepairOrder) => void;
+  onCharge: (order: RepairOrder) => void;
   onDelete: (id: string) => void;
 }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -153,6 +164,10 @@ function RepairActionsMenu({
       {canNotifyRepairOwner(row) && <MenuItem onClick={() => run(() => onNotify(row))}>
         <ListItemIcon><Icon icon="logos:whatsapp-icon" width={20} /></ListItemIcon>
         <ListItemText>Avisar por WhatsApp</ListItemText>
+      </MenuItem>}
+      {row.status.toLowerCase() === RepairStatus.REPAIRED && <MenuItem onClick={() => run(() => onCharge(row))}>
+        <ListItemIcon><Icon icon="eva:credit-card-outline" width={20} color="success" /></ListItemIcon>
+        <ListItemText>Cobrar reparación</ListItemText>
       </MenuItem>}
       <MenuItem onClick={() => run(() => onDelete(row.id))} sx={{ color: 'error.main' }}>
         <ListItemIcon><Icon icon="eva:trash-2-outline" width={20} color="error" /></ListItemIcon>
@@ -227,6 +242,10 @@ export default function RepairsPage() {
       setSelectedOrder(order);
       setOpenForm(true);
     }
+  };
+
+  const handleChargeRepair = (order: RepairOrder) => {
+    window.location.href = `/sales?mode=repairs&repair=${encodeURIComponent(order.folio)}`;
   };
 
   const handleCreateOrder = () => {
@@ -327,9 +346,7 @@ export default function RepairsPage() {
     ['pending_diagnosis', 'diagnosis_confirmed'].includes(o.status.toLowerCase())
   ).length;
   const inRepairOrders = orders.filter(o => o.status.toLowerCase() === 'in_repair').length;
-  const completedOrders = orders.filter(o => 
-    ['repaired', 'completed'].includes(o.status.toLowerCase())
-  ).length;
+  const completedOrders = orders.filter(o => o.status.toLowerCase() === RepairStatus.COMPLETED).length;
   const [searchTerm, setSearchTerm] = useState('');
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -369,6 +386,7 @@ export default function RepairsPage() {
             variant="outlined"
             sx={{ mt: 0.5 }}
           />
+          {isRepairPaid(params.row) && <Chip label="Pagado" color="success" size="small" sx={{ mt: 0.5, ml: 0.5 }} />}
         </Box>
       )
     },
@@ -399,7 +417,7 @@ export default function RepairsPage() {
       headerName: 'Acciones',
       width: 84,
       sortable: false,
-      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onDelete={handleDeleteOrder} />
+      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onCharge={handleChargeRepair} onDelete={handleDeleteOrder} />
     }
   ];
 
@@ -452,12 +470,15 @@ export default function RepairsPage() {
       headerName: 'Estado',
       width: 150,
       renderCell: (params: any) => (
-        <Chip
-          label={getStatusLabel(params.value)}
-          color={getStatusColor(params.value) as any}
-          size="small"
-          variant="outlined"
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+          <Chip
+            label={getStatusLabel(params.value)}
+            color={getStatusColor(params.value) as any}
+            size="small"
+            variant="outlined"
+          />
+          {isRepairPaid(params.row) && <Chip label="Pagado" color="success" size="small" />}
+        </Box>
       )
     },
     {
@@ -465,7 +486,7 @@ export default function RepairsPage() {
       headerName: 'Acciones',
       width: 84,
       sortable: false,
-      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onDelete={handleDeleteOrder} />
+      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onCharge={handleChargeRepair} onDelete={handleDeleteOrder} />
     }
   ];
 
@@ -516,13 +537,27 @@ export default function RepairsPage() {
       headerName: 'Estado',
       width: 180,
       renderCell: (params: any) => (
-        <Chip
-          label={getStatusLabel(params.value)}
-          color={getStatusColor(params.value) as any}
-          size="small"
-          variant="outlined"
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+          <Chip
+            label={getStatusLabel(params.value)}
+            color={getStatusColor(params.value) as any}
+            size="small"
+            variant="outlined"
+          />
+          {isRepairPaid(params.row) && <Chip label="Pagado" color="success" size="small" />}
+        </Box>
       )
+    },
+    {
+      field: 'payment',
+      headerName: 'Pago',
+      width: 150,
+      renderCell: (params: any) => params.row.payment ? (
+        <Box>
+          <Typography variant="body2" fontWeight={600}>{`$${Number(params.row.payment.amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}</Typography>
+          <Typography variant="caption" color="text.secondary">{paymentMethodLabel[params.row.payment.paymentMethod] || params.row.payment.paymentMethod}</Typography>
+        </Box>
+      ) : <Typography variant="body2" color="text.secondary">Pendiente</Typography>
     },
     {
       field: 'totalCost',
@@ -549,7 +584,7 @@ export default function RepairsPage() {
       headerName: 'Acciones',
       width: 84,
       sortable: false,
-      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onDelete={handleDeleteOrder} />
+      renderCell: (params: any) => <RepairActionsMenu row={params.row} onView={handleViewOrder} onEdit={handleEditOrder} onNext={handleChangeStatus} onNotify={openRepairReadyWhatsApp} onCharge={handleChargeRepair} onDelete={handleDeleteOrder} />
     }
   ];
 
@@ -904,12 +939,15 @@ export default function RepairsPage() {
 
             {newStatus ? (
               <Alert
-                severity={newStatus === RepairStatus.REPAIR_REJECTED ? 'warning' : 'info'}
+                severity={newStatus === RepairStatus.REPAIR_REJECTED ? 'warning' : (newStatus === RepairStatus.COMPLETED && selectedOrder && !isRepairPaid(selectedOrder) ? 'warning' : 'info')}
                 sx={{ mb: 3 }}
                 icon={<Icon icon={newStatus === RepairStatus.REPAIR_REJECTED ? 'eva:alert-triangle-outline' : 'eva:arrow-forward-outline'} />}
               >
-                {newStatus === RepairStatus.REPAIR_REJECTED ? 'Rechazo seleccionado. ' : 'Siguiente paso: '}
-                <strong>{getStatusLabel(newStatus)}</strong>
+                {newStatus === RepairStatus.REPAIR_REJECTED
+                  ? <>Rechazo seleccionado. <strong>{getStatusLabel(newStatus)}</strong></>
+                  : newStatus === RepairStatus.COMPLETED && selectedOrder && !isRepairPaid(selectedOrder)
+                    ? <>Primero registra el pago total de la reparación para habilitar <strong>Completado</strong>.</>
+                    : <>Siguiente paso: <strong>{getStatusLabel(newStatus)}</strong></>}
               </Alert>
             ) : (
               <Alert severity="success" sx={{ mb: 3 }}>
@@ -959,7 +997,7 @@ export default function RepairsPage() {
               onClick={handleConfirmStatusChange}
               color={newStatus === RepairStatus.REPAIR_REJECTED ? 'error' : 'primary'}
               variant="contained"
-              disabled={updatingStatus || !newStatus}
+              disabled={updatingStatus || !newStatus || (newStatus === RepairStatus.COMPLETED && Boolean(selectedOrder && !isRepairPaid(selectedOrder)))}
               startIcon={updatingStatus ? undefined : <Icon icon="eva:checkmark-outline" />}
             >
               {updatingStatus
