@@ -20,11 +20,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 2. Si ya está logueado, no dejarlo ir al login/register
-  if (token && (pathname === '/login' || pathname === '/register')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
   return NextResponse.next();
 }
 

@@ -25,6 +25,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Stack,
   useMediaQuery,
   useTheme
 } from '@mui/material';
@@ -716,6 +717,48 @@ export default function RepairsPage() {
                   Limpiar búsqueda
                 </Button>
               </Box>
+            ) : isMobile ? (
+              <Stack spacing={1.5}>
+                {filteredOrders.map((order) => (
+                  <Card key={order.id} variant="outlined" sx={{ borderRadius: 2 }}>
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle1" fontWeight={800}>{order.folio}</Typography>
+                          <Typography variant="body2" color="text.secondary" noWrap>{order.clientName}</Typography>
+                        </Box>
+                        <RepairActionsMenu
+                          row={order}
+                          onView={handleViewOrder}
+                          onEdit={handleEditOrder}
+                          onNext={handleChangeStatus}
+                          onNotify={openRepairReadyWhatsApp}
+                          onCharge={handleChargeRepair}
+                          onDelete={handleDeleteOrder}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 1.25 }}>
+                        <Chip label={getStatusLabel(order.status)} color={getStatusColor(order.status) as any} size="small" variant="outlined" />
+                        {isRepairPaid(order) && <Chip label="Pagado" color="success" size="small" />}
+                      </Box>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 1.5, mt: 1.5 }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="caption" color="text.secondary" display="block">Aparato</Typography>
+                          <Typography variant="body2" noWrap>{order.deviceBrand} {order.deviceType}{order.deviceModel ? ` · ${order.deviceModel}` : ''}</Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Typography variant="caption" color="text.secondary" display="block">Costo</Typography>
+                          <Typography variant="body2" fontWeight={700}>{order.totalCost ? `$${Number(order.totalCost).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Pendiente'}</Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.25, pt: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" color="text.secondary">Ingreso {format(new Date(order.createdAt), 'dd/MM/yyyy', { locale: es })}</Typography>
+                        {order.payment && <Typography variant="caption" color="text.secondary">Pago: {paymentMethodLabel[order.payment.paymentMethod] || order.payment.paymentMethod}</Typography>}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
             ) : (
               <DataTable
                 rows={filteredOrders}

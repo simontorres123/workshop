@@ -154,13 +154,15 @@ export default function WarrantyClaimHistory({
       {/* Header */}
       <Box sx={{ 
         display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
         justifyContent: 'space-between', 
-        alignItems: 'center',
-        mb: 2 
+        alignItems: { xs: 'stretch', sm: 'center' },
+        gap: { xs: 1.5, sm: 2 },
+        mb: 2
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <Icon icon="eva:shield-outline" width={24} height={24} />
-          <Typography variant="h6" fontWeight="bold">
+          <Typography variant="h6" fontWeight="bold" sx={{ minWidth: 0 }}>
             Historial de Garantías
           </Typography>
           <Chip 
@@ -180,10 +182,14 @@ export default function WarrantyClaimHistory({
               disabled={loading}
               sx={{ 
                 borderRadius: 2,
-                textTransform: 'none'
+                textTransform: 'none',
+                width: { xs: '100%', sm: 'auto' },
+                minHeight: 40,
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}
             >
-              Nuevo Reclamo
+              Nuevo reclamo
             </Button>
           </Tooltip>
         )}
