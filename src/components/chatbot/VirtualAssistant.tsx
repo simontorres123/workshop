@@ -1,44 +1,10 @@
 "use client";
 
 import * as React from "react";
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  IconButton,
-  InputAdornment,
-  Paper,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import CloseIcon from "@mui/icons-material/Close";
-import SendRoundedIcon from "@mui/icons-material/SendRounded";
-import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
-
-const QUICK_QUESTIONS = [
-  "¿Cómo registro una orden de reparación?",
-  "¿Qué reparaciones requieren atención?",
-  "¿Cómo agrego una refacción a una orden?",
-];
-
-function createMessageId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+import { Box, Dialog, DialogTitle, Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import Close from "@mui/icons-material/Close";
+import { useAuthStore } from "@/store/auth.store";
+import GuidedAssistant from "./GuidedAssistant";
 
 function AssistantMark() {
   return (
@@ -74,197 +40,28 @@ function AssistantMark() {
   );
 }
 
+
 export default function VirtualAssistant() {
   const [open, setOpen] = React.useState(false);
-  const [input, setInput] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [messages, setMessages] = React.useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Hola, soy tu asistente virtual. Puedo ayudarte con el uso de la plataforma y consultar información autorizada de tu taller.",
-    },
-  ]);
-  const endOfMessagesRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (open) endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
-
-  const sendMessage = async (messageOverride?: string) => {
-    const message = (messageOverride ?? input).trim();
-    if (!message || loading) return;
-
-    setInput("");
-    setError("");
-    setMessages((current) => [
-      ...current,
-      { id: createMessageId(), role: "user", content: message },
-    ]);
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/chatbot/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(payload?.error || "No se pudo obtener una respuesta.");
-      }
-
-      const answer = payload?.answer || payload?.response || payload?.message;
-      if (typeof answer !== "string" || !answer.trim()) {
-        throw new Error("El asistente no devolvió una respuesta válida.");
-      }
-      setMessages((current) => [
-        ...current,
-        { id: createMessageId(), role: "assistant", content: answer.trim() },
-      ]);
-    } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : "No se pudo conectar con el asistente.";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void sendMessage();
-  };
-
-  return (
-    <>
-      <Tooltip title="Asistente virtual">
-        <Button
-          onClick={() => setOpen(true)}
-          aria-label="Abrir asistente virtual"
-          sx={{
-            minWidth: { xs: 36, sm: "auto" },
-            width: { xs: 36, sm: "auto" },
-            height: 36,
-            px: { xs: 0, sm: 0.75 },
-            borderRadius: { xs: "50%", sm: 2.5 },
-            color: "text.primary",
-            border: "none",
-            bgcolor: "transparent",
-            textTransform: "none",
-            fontWeight: 700,
-            gap: 1,
-            "&:hover": {
-              bgcolor: "transparent",
-              "& .assistant-mark svg": { transform: "scale(1.04)" },
-            },
-          }}
-        >
+  const identity = useAuthStore(state => [state.user?.id, state.profile?.organization_id, state.profile?.role, state.activeBranchId].join(":"));
+  return <>
+    <Tooltip title="Asistente del taller">
+      <IconButton onClick={() => setOpen(true)} aria-label="Abrir asistente virtual" sx={{ width: 40, height: 40, color: "text.primary" }}><AssistantMark /></IconButton>
+    </Tooltip>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm" aria-labelledby="guided-assistant-title"
+      PaperProps={{ sx: { m: { xs: 0, sm: 3 }, width: { xs: "100%", sm: "calc(100% - 48px)" }, height: { xs: "100dvh", sm: "min(760px, calc(100dvh - 48px))" }, maxHeight: { xs: "100dvh", sm: "calc(100dvh - 48px)" }, borderRadius: { xs: 0, sm: 3 }, display: "flex", overflow: "hidden", pt: "env(safe-area-inset-top)" } }}>
+      <DialogTitle component="div" sx={{ p: { xs: 2, sm: 2.5 }, flexShrink: 0 }}>
+        <Stack direction="row" alignItems="center" gap={1.25}>
           <AssistantMark />
-        </Button>
-      </Tooltip>
-
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            borderRadius: { xs: 0, sm: 3 },
-            minHeight: { xs: "100dvh", sm: 620 },
-            maxHeight: { xs: "100dvh", sm: "calc(100dvh - 48px)" },
-          },
-        }}
-      >
-        <DialogTitle sx={{ p: { xs: 2, sm: 2.5 }, pb: 1.5 }}>
-          <Stack direction="row" alignItems="center" spacing={1.25}>
-            <AssistantMark />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Stack direction="row" alignItems="center" spacing={0.75}>
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>Asistente virtual</Typography>
-                <AutoAwesomeIcon sx={{ color: "secondary.main", fontSize: 18 }} />
-              </Stack>
-              <Typography variant="body2" color="text.secondary">Ayuda rápida para tu taller</Typography>
-            </Box>
-            <IconButton onClick={() => setOpen(false)} aria-label="Cerrar asistente">
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ p: { xs: 1.5, sm: 2.5 }, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <Stack spacing={1.5} sx={{ flex: 1, overflowY: "auto", pr: 0.5, pb: 1 }}>
-            {messages.map((message) => (
-              <Stack key={message.id} direction="row" justifyContent={message.role === "user" ? "flex-end" : "flex-start"}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    maxWidth: "88%",
-                    px: 1.75,
-                    py: 1.25,
-                    borderRadius: 2.5,
-                    bgcolor: message.role === "user" ? "primary.main" : "grey.100",
-                    color: message.role === "user" ? "primary.contrastText" : "text.primary",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  <Typography variant="body2" sx={{ lineHeight: 1.55 }}>{message.content}</Typography>
-                </Paper>
-              </Stack>
-            ))}
-            {loading && (
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ color: "text.secondary", px: 1 }}>
-                <CircularProgress size={16} />
-                <Typography variant="body2">Escribiendo respuesta…</Typography>
-              </Stack>
-            )}
-            <div ref={endOfMessagesRef} />
-          </Stack>
-
-          {messages.length === 1 && (
-            <Box sx={{ pt: 1 }}>
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                {QUICK_QUESTIONS.map((question) => (
-                  <Chip
-                    key={question}
-                    icon={<HelpOutlineRoundedIcon />}
-                    label={question}
-                    onClick={() => void sendMessage(question)}
-                    variant="outlined"
-                    sx={{ maxWidth: "100%", height: "auto", py: 0.5, "& .MuiChip-label": { whiteSpace: "normal" } }}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          )}
-
-          {error && (
-            <Typography color="error.main" variant="caption" sx={{ pt: 1 }}>{error}</Typography>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ pt: 1.5 }}>
-            <TextField
-              fullWidth
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Escribe tu pregunta…"
-              disabled={loading}
-              inputProps={{ maxLength: 2000, "aria-label": "Pregunta para el asistente" }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton type="submit" color="primary" disabled={!input.trim() || loading} aria-label="Enviar pregunta">
-                      <SendRoundedIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography id="guided-assistant-title" component="h2" variant="h6" sx={{ fontWeight: 800, fontSize: { xs: 18, sm: 20 } }}>Asistente del taller</Typography>
+            <Typography variant="body2" color="text.secondary">Consulta y aprende, paso a paso</Typography>
           </Box>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+          <IconButton onClick={() => setOpen(false)} aria-label="Cerrar asistente" sx={{ width: 44, height: 44 }}><Close /></IconButton>
+        </Stack>
+      </DialogTitle>
+      <Divider />
+      {open && <GuidedAssistant key={identity} />}
+    </Dialog>
+  </>;
 }
