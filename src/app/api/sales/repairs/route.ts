@@ -7,11 +7,12 @@ const money = (value: unknown) => Number(value || 0);
 export async function GET(request: NextRequest) {
   const context = await getTenantContext(request);
   if (!context) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+  if (context.role !== 'org_admin' && context.role !== 'super_admin' && !(context.assignedBranches || []).length) return NextResponse.json({ success: false, error: 'No tienes una sucursal asignada' }, { status: 403 });
   try {
     const query = new URL(request.url).searchParams.get('q')?.trim() || '';
     let repairsQuery = supabaseAdmin.from('repair_orders').select('*').eq('organization_id', context.organizationId).eq('status', 'repaired').order('completed_at', { ascending: false });
     if (query) repairsQuery = repairsQuery.or(`folio.ilike.%${query}%,client_name.ilike.%${query}%,client_phone.ilike.%${query}%`);
-    if (context.role !== 'org_admin' && context.role !== 'super_admin' && context.assignedBranches.length) repairsQuery = repairsQuery.in('branch_id', context.assignedBranches);
+    if (context.role !== 'org_admin' && context.role !== 'super_admin' && (context.assignedBranches || []).length) repairsQuery = repairsQuery.in('branch_id', context.assignedBranches || []);
     const { data: repairs, error: repairsError } = await repairsQuery.limit(50);
     if (repairsError) throw repairsError;
     const ids = (repairs || []).map(repair => repair.id);

@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     const repository = new InventoryRepository(context);
     const initialStock = Number(b.stock || 0);
     const branchId = b.branchId || context.branchId;
+    await repository.assertBranchAccess(branchId);
     const data = await repository.createProduct({
       name: b.name, description: b.description || null, category_id: b.categoryId || null,
       sku: b.sku || null, barcode: b.barcode || null, brand: b.brand || null, model: b.model || null,

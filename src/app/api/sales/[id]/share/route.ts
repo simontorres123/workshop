@@ -10,11 +10,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   const { data: sale, error } = await supabaseAdmin
     .from('workshop_sales')
-    .select('id, organization_id, sale_number, status')
+    .select('id, organization_id, branch_id, sale_number, status')
     .eq('id', id)
     .eq('organization_id', context.organizationId)
     .single();
   if (error || !sale) return NextResponse.json({ success: false, error: 'Venta no encontrada' }, { status: 404 });
+  if (context.role !== 'org_admin' && context.role !== 'super_admin' && !(context.assignedBranches || []).includes(sale.branch_id)) return NextResponse.json({ success: false, error: 'No tienes acceso a la sucursal de esta venta' }, { status: 403 });
   if (sale.status === 'cancelled') return NextResponse.json({ success: false, error: 'No se puede compartir una venta cancelada' }, { status: 400 });
 
   const token = createSaleReceiptToken(sale.id, sale.organization_id);

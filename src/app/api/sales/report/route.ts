@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/client';
 export async function GET(request: NextRequest) {
   const context = await getTenantContext(request);
   if (!context) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+  if (context.role !== 'org_admin' && context.role !== 'super_admin' && !(context.assignedBranches || []).length) return NextResponse.json({ success: false, error: 'No tienes una sucursal asignada' }, { status: 403 });
   try {
     const url = new URL(request.url);
     const from = url.searchParams.get('from');
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin.from('workshop_sales').select('id, branch_id, total, subtotal, discount, tax, payment_method, status, created_at').eq('organization_id', context.organizationId);
     if (from) query = query.gte('created_at', from);
     if (to) query = query.lt('created_at', to);
-    if (context.role !== 'org_admin' && context.role !== 'super_admin' && context.assignedBranches.length) query = query.in('branch_id', context.assignedBranches);
+    if (context.role !== 'org_admin' && context.role !== 'super_admin' && (context.assignedBranches || []).length) query = query.in('branch_id', context.assignedBranches || []);
     const { data, error } = await query.order('created_at', { ascending: false }).limit(5000);
     if (error) throw error;
     const sales = data || [];

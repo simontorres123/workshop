@@ -19,6 +19,29 @@ export class InventoryRepository {
     return query;
   }
 
+  /**
+   * Los endpoints usan service-role para poder aplicar operaciones atómicas.
+   * Por eso la pertenencia de la sucursal debe validarse explícitamente aquí;
+   * no podemos confiar únicamente en RLS en este flujo.
+   */
+  async assertBranchAccess(branchId?: string | null) {
+    if (this.context.role !== 'org_admin' && this.context.role !== 'super_admin' && !(this.context.assignedBranches || []).length) {
+      throw new Error('No tienes una sucursal asignada');
+    }
+    if (!branchId) return;
+    const { data: branch, error } = await supabaseAdmin
+      .from('branches')
+      .select('id, organization_id, is_active')
+      .eq('id', branchId)
+      .eq('organization_id', this.context.organizationId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!branch || branch.is_active === false) throw new Error('Sucursal no autorizada');
+    if (this.context.role !== 'org_admin' && this.context.role !== 'super_admin' && !(this.context.assignedBranches || []).includes(branchId)) {
+      throw new Error('Sucursal no autorizada');
+    }
+  }
+
   private toProduct(product: any, branchId?: string | null) {
     const stocks = (product.inventory_stock || []).filter((stock: any) => !branchId || stock.branch_id === branchId);
     const stock = stocks.reduce((sum: number, row: any) => sum + Number(row.quantity || 0), 0);
@@ -47,6 +70,7 @@ export class InventoryRepository {
 
   async listProducts(filters: Record<string, string | number | boolean | undefined> = {}) {
     const branchId = filters.branchId as string | undefined;
+    await this.assertBranchAccess(branchId || this.context.branchId);
     let query: any = this.scope(supabaseAdmin.from('inventory_products').select('*, inventory_categories(name, slug), inventory_stock(*)'));
     if (filters.search) query = query.or(`name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%,barcode.ilike.%${filters.search}%`);
     if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
@@ -82,6 +106,7 @@ export class InventoryRepository {
   }
 
   async applyMovement(payload: { productId: string; branchId: string; locationId?: string; type: InventoryMovementType; quantity: number; reason: string; reference?: string; transferBranchId?: string; transferLocationId?: string; unitCost?: number; metadata?: Record<string, unknown> }) {
+    await this.assertBranchAccess(payload.branchId);
     if (this.context.role !== 'org_admin' && this.context.role !== 'super_admin' && !(this.context.assignedBranches || []).includes(payload.branchId)) throw new Error('Sucursal no autorizada');
     const { error } = await supabaseAdmin.rpc('inventory_apply_movement', { p_organization_id: this.context.organizationId, p_product_id: payload.productId, p_branch_id: payload.branchId, p_location_id: payload.locationId || null, p_type: payload.type, p_quantity: payload.quantity, p_reason: payload.reason, p_reference: payload.reference || null, p_transfer_branch_id: payload.transferBranchId || null, p_transfer_location_id: payload.transferLocationId || null, p_unit_cost: payload.unitCost || null, p_metadata: payload.metadata || {} });
     if (error) throw error;
