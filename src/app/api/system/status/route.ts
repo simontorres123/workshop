@@ -25,7 +25,7 @@ export async function GET() {
       'inventory',
       'products',
       'notifications',
-      'push_subscriptions',
+      'in_app_notifications',
       'warranty_claims'
     ];
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
+import LegacyServiceWorkerCleanup from "@/components/providers/LegacyServiceWorkerCleanup";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { getAppUrl } from '@/lib/app-url';
 
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <AppRouterCacheProvider>
           <AuthProvider>
+            <LegacyServiceWorkerCleanup />
             {children}
             <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
           </AuthProvider>

@@ -36,7 +36,6 @@ import {
 } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
 import { Icon } from '@iconify/react';
-import PushNotificationSettings from '@/components/ui/PushNotificationSettings';
 import ExternalServicesManager from './ExternalServicesManager';
 
 interface ConfigurationPanelProps {
@@ -691,22 +690,8 @@ export default function ConfigurationPanel({ open, onClose, onConfigUpdated }: C
                 Servicios de Notificación
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configure y pruebe los servicios de notificaciones push y externos (Email, SMS, WhatsApp).
+                Configure y pruebe los servicios externos de Email, SMS y WhatsApp.
               </Typography>
-            </Grid>
-            
-            {/* Notificaciones Push */}
-            <Grid item xs={12}>
-              <Card variant="outlined">
-                <CardHeader
-                  avatar={<Icon icon="eva:smartphone-outline" width={20} />}
-                  title="Notificaciones Push"
-                  subheader="Configurar notificaciones web push para el navegador"
-                />
-                <CardContent>
-                  <PushNotificationSettings />
-                </CardContent>
-              </Card>
             </Grid>
             
             {/* Servicios Externos */}

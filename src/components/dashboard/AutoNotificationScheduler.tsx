@@ -28,7 +28,6 @@ import {
   IconButton
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -41,7 +40,7 @@ interface ScheduledNotification {
   type: string;
   title: string;
   schedule: string;
-  enabled: boolean;
+  isActive: boolean;
   nextRun: string;
 }
 
@@ -58,8 +57,6 @@ export default function AutoNotificationScheduler() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // Hook para enviar notificaciones push
-  const { isSubscribed, sendTestNotification } = usePushNotifications();
   
   const [newNotification, setNewNotification] = useState({
     type: '',
@@ -111,7 +108,7 @@ export default function AutoNotificationScheduler() {
 
   const loadScheduledNotifications = async () => {
     try {
-      const response = await fetch('/api/push-notifications/schedule');
+      const response = await fetch('/api/notifications/rules');
       const result = await response.json();
       
       if (result.success) {
@@ -158,7 +155,7 @@ export default function AutoNotificationScheduler() {
     setError(null);
 
     try {
-      const response = await fetch('/api/push-notifications/schedule', {
+      const response = await fetch('/api/notifications/rules', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,84 +192,12 @@ export default function AutoNotificationScheduler() {
         });
         
         if (newNotification.testRun) {
-          setError('Notificación automática se enviará en 5 segundos');
-          
-          // Verificar si el usuario está suscrito
-          if (!isSubscribed) {
-            setError('Para recibir notificaciones automáticas, primero suscríbete en la pestaña "Push Notifications"');
-            setTimeout(() => setError(null), 10000);
-            return;
-          }
-          
-          // Esperar y enviar la notificación usando el endpoint automático
-          setTimeout(async () => {
-            try {
-              console.log('🤖 Enviando notificación automática desde el frontend...');
-              
-              // Hacer fetch al endpoint de notificación automática
-              const autoResponse = await fetch('/api/push-notifications/send-auto', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  type: newNotification.type,
-                  title: getNotificationTitle(newNotification.type),
-                  body: getNotificationBody(newNotification.type),
-                  data: { url: getNotificationUrl(newNotification.type) }
-                })
-              });
-              
-              if (autoResponse.ok) {
-                const autoResult = await autoResponse.json();
-                console.log('📱 Respuesta del servidor automático:', autoResult);
-                
-                // Si el servidor indica que debemos mostrar la notificación localmente
-                if (autoResult.action === 'show_notification' && autoResult.payload) {
-                  console.log('📱 Mostrando notificación automática localmente...');
-                  console.log('🔍 Payload para sendTestNotification:', {
-                    title: autoResult.payload.title,
-                    body: autoResult.payload.body,
-                    data: autoResult.payload.data,
-                    tag: autoResult.payload.tag,
-                    icon: autoResult.payload.icon
-                  });
-                  
-                  // Usar el hook para mostrar la notificación
-                  console.log('🚀 Llamando a sendTestNotification...');
-                  const success = await sendTestNotification({
-                    title: autoResult.payload.title,
-                    body: autoResult.payload.body,
-                    data: autoResult.payload.data,
-                    tag: autoResult.payload.tag,
-                    icon: autoResult.payload.icon
-                  });
-                  
-                  console.log('🎯 Resultado de sendTestNotification:', success);
-                  
-                  if (success) {
-                    console.log('✅ Notificación automática enviada exitosamente al navegador');
-                    setError('✅ Notificación automática enviada correctamente');
-                  } else {
-                    console.log('❌ Error enviando notificación automática al navegador');
-                    setError('❌ Error mostrando la notificación automática');
-                  }
-                } else {
-                  console.log('⚠️ El servidor no retornó action=show_notification o payload vacío');
-                  console.log('🔍 autoResult completo:', autoResult);
-                }
-              } else {
-                console.log('❌ Error en la respuesta del servidor:', autoResponse.status);
-                const errorText = await autoResponse.text();
-                console.log('❌ Error text:', errorText);
-              }
-            } catch (error) {
-              console.error('❌ Error enviando notificación automática:', error);
-              setError('Error enviando notificación automática');
-            }
-          }, 5000);
-          
-          setTimeout(() => setError(null), 8000);
+          const testResponse = await fetch('/api/notifications/test', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: newNotification.type, title: getNotificationTitle(newNotification.type), body: getNotificationBody(newNotification.type), link: getNotificationUrl(newNotification.type) })
+          });
+          setError(testResponse.ok ? 'Prueba creada: revisa la campana de notificaciones.' : 'No se pudo crear la notificación de prueba.');
+          setTimeout(() => setError(null), 6000);
         }
       } else {
         setError(result.error || 'Error creando notificación');
@@ -291,7 +216,7 @@ export default function AutoNotificationScheduler() {
     try {
       console.log(`Actualizando notificación ${id} a ${isActive ? 'activa' : 'inactiva'}`);
       
-      const response = await fetch('/api/push-notifications/schedule', {
+      const response = await fetch('/api/notifications/rules', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +246,7 @@ export default function AutoNotificationScheduler() {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/push-notifications/schedule', {
+      const response = await fetch('/api/notifications/rules', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -484,20 +409,11 @@ export default function AutoNotificationScheduler() {
         <CardContent>
           {error && (
             <Alert 
-              severity={error.includes('enviará') ? 'info' : 'error'} 
+              severity={error.includes('Prueba creada') ? 'info' : 'error'}
               sx={{ mb: 2 }}
               onClose={() => setError(null)}
             >
               {error}
-            </Alert>
-          )}
-
-          {/* Advertencia si no está suscrito */}
-          {!isSubscribed && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                Para recibir notificaciones automáticas, primero suscríbete en la pestaña "Push Notifications"
-              </Typography>
             </Alert>
           )}
 

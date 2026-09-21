@@ -24,7 +24,6 @@ import {
   TableRow
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import PushNotificationSettings from '@/components/ui/PushNotificationSettings';
 
 interface SystemStatus {
   database: {
@@ -100,7 +99,7 @@ export default function SystemPage() {
             Configuración del Sistema
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Monitoreo de Base de Datos PostgreSQL • Seguridad RLS • Migraciones de Esquema • Notificaciones Push
+            Monitoreo de Base de Datos PostgreSQL • Seguridad RLS • Migraciones de Esquema • Notificaciones internas
           </Typography>
         </Box>
 
@@ -275,10 +274,6 @@ export default function SystemPage() {
               </CardContent>
             </Card>
 
-            {/* Configuración de Notificaciones Push */}
-            <Box sx={{ mt: 4 }}>
-              <PushNotificationSettings />
-            </Box>
           </>
         )}
       </Box>
