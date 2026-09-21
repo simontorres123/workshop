@@ -60,8 +60,8 @@ export default function SalesPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const getPeriodParams = () => { const params = new URLSearchParams(); if (dateFrom) params.set('from', `${dateFrom}T00:00:00`); if (dateTo) { const end = new Date(`${dateTo}T00:00:00`); end.setDate(end.getDate() + 1); params.set('to', end.toISOString()); } return params.toString(); };
-  const loadSales = async (period = getPeriodParams()) => { const response = await fetch(`/api/sales${period ? `?${period}` : ''}`); const json = await readJsonResponse(response); if (response.ok && json.success) setSales(json.data || []); };
-  const loadReport = async (period = getPeriodParams()) => { const response = await fetch(`/api/sales/report${period ? `?${period}` : ''}`); const json = await readJsonResponse(response); if (response.ok && json.success) setReport(json.data); };
+  const loadSales = async (period = getPeriodParams()) => { const response = await fetch(`/api/sales${period ? `?${period}` : ''}`, { cache: 'no-store' }); const json = await readJsonResponse(response); if (response.ok && json.success) setSales(json.data || []); };
+  const loadReport = async (period = getPeriodParams()) => { const response = await fetch(`/api/sales/report${period ? `?${period}` : ''}`, { cache: 'no-store' }); const json = await readJsonResponse(response); if (response.ok && json.success) setReport(json.data); };
   useEffect(() => {
     fetchProducts({ isActive: true });
     fetch('/api/branches').then(readJsonResponse).then(json => { if (json.success) { setBranches(json.data || []); if (!branchId && json.data?.[0]?.id) setBranchId(json.data[0].id); } }).catch(() => undefined);

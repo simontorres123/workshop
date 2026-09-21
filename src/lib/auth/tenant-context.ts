@@ -30,15 +30,20 @@ export async function getTenantContext(request: NextRequest): Promise<TenantCont
 
     const { data: profileRaw, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .select('organization_id, branch_id, role, user_branches(branch_id)')
+      .select('organization_id, branch_id, role')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profileRaw?.organization_id) return null;
     const profile = profileRaw as any;
+    const { data: userBranches, error: branchesError } = await supabaseAdmin
+      .from('user_branches')
+      .select('branch_id')
+      .eq('user_id', user.id);
+    if (branchesError) return null;
     const assignedBranches = Array.from(new Set([
       profile.branch_id,
-      ...(profile.user_branches || []).map((branch: any) => branch.branch_id),
+      ...(userBranches || []).map((branch: any) => branch.branch_id),
     ].filter(Boolean))) as string[];
 
     return {

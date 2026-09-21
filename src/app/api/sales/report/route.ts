@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const sales = data || [];
     const valid = sales.filter(sale => sale.status !== 'cancelled' && sale.status !== 'refunded');
     const byPayment = valid.reduce<Record<string, number>>((summary, sale) => { summary[sale.payment_method] = (summary[sale.payment_method] || 0) + Number(sale.total || 0); return summary; }, {});
-    return NextResponse.json({ success: true, data: { totalSales: valid.length, grossTotal: valid.reduce((sum, sale) => sum + Number(sale.total || 0), 0), cancelledSales: sales.filter(sale => sale.status === 'cancelled').length, averageTicket: valid.length ? valid.reduce((sum, sale) => sum + Number(sale.total || 0), 0) / valid.length : 0, byPayment } });
+    return NextResponse.json({ success: true, data: { totalSales: valid.length, grossTotal: valid.reduce((sum, sale) => sum + Number(sale.total || 0), 0), cancelledSales: sales.filter(sale => sale.status === 'cancelled').length, averageTicket: valid.length ? valid.reduce((sum, sale) => sum + Number(sale.total || 0), 0) / valid.length : 0, byPayment } }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Error obteniendo reporte de ventas:', error);
     return NextResponse.json({ success: false, error: 'No se pudo cargar el reporte de ventas' }, { status: 500 });

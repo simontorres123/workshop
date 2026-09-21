@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const params = Object.fromEntries(new URL(request.url).searchParams.entries());
     const data = await new InventoryRepository(context).listProducts(params);
-    return NextResponse.json({ success: true, data, total: data.length });
+    return NextResponse.json({ success: true, data, total: data.length }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { console.error(error); return NextResponse.json({ success: false, error: 'Error obteniendo productos' }, { status: 500 }); }
 }
 

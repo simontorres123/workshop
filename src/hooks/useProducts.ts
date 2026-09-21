@@ -44,7 +44,7 @@ export const useProducts = (): UseProductsResult => {
         params.set('branchId', activeBranchId);
       }
 
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetch(`/api/products?${params.toString()}`, { cache: 'no-store' });
       const result = await response.json();
 
       if (result.success) {

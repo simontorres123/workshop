@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (context.role !== 'org_admin' && context.role !== 'super_admin' && (context.assignedBranches || []).length) query = query.in('branch_id', context.assignedBranches || []);
     const { data, error } = await query.limit(100);
     if (error) throw error;
-    return NextResponse.json({ success: true, data: data || [] });
+    return NextResponse.json({ success: true, data: data || [] }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Error obteniendo ventas:', error);
     return NextResponse.json({ success: false, error: 'No se pudieron cargar las ventas' }, { status: 500 });

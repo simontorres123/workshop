@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const [{ data: users, error: usersError }, { data: organizations, error: organizationsError }, { data: branches, error: branchesError }, { data: authUsers, error: authUsersError }] = await Promise.all([
       supabaseAdmin
         .from('user_profiles')
-        .select('id, full_name, role, organization_id, created_at, organizations(id, name, slug), user_branches(branch_id, branches(id, name, organization_id))')
+        .select('id, full_name, role, organization_id, created_at, organizations!user_profiles_organization_id_fkey(id, name, slug), user_branches(branch_id, branches(id, name, organization_id))')
         .order('created_at', { ascending: false }),
       supabaseAdmin
         .from('organizations')

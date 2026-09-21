@@ -1,5 +1,5 @@
 // Service Worker para notificaciones push
-const CACHE_NAME = 'workshop-v4';
+const CACHE_NAME = 'workshop-v5';
 
 // Instalar service worker
 self.addEventListener('install', (event) => {
@@ -57,8 +57,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Las APIs contienen información privada por organización/sucursal. Nunca
+  // deben pasar por una caché compartida del navegador.
+  if (requestUrl.pathname.startsWith('/api/')) {
+    return;
+  }
+
   // Solo manejar GET requests
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Solo el ícono de marca puede resolverse desde caché. Las navegaciones
+  // siempre van a red para no reutilizar una sesión visual anterior.
+  if (requestUrl.pathname !== '/brand/workshop-mark.png' && event.request.mode !== 'navigate') {
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response('Offline', { status: 200, statusText: 'OK' }))
+    );
     return;
   }
   

@@ -88,25 +88,37 @@ export const authService = {
    * Obtener el perfil completo del usuario (Multi-tenant context)
    */
   getUserProfile: async (userId: string): Promise<UserProfile | null> => {
+    // Mantener la consulta del perfil separada de las relaciones opcionales.
+    // Un fallo de RLS/relación en organizations o user_branches no debe
+    // convertir un perfil válido (incluido super_admin) en una sesión sin rol.
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*, organizations(*), user_branches(branch_id, branches(*))')
+      .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching user profile:', { code: error.code, message: error.message, details: error.details });
       return null;
     }
-    
+
+    if (!data) return null;
+
     const profile = data as any;
-    const branchesData = profile.user_branches || [];
-    
+    const [{ data: organization }, { data: userBranches }] = await Promise.all([
+      profile.organization_id
+        ? supabase.from('organizations').select('*').eq('id', profile.organization_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase.from('user_branches').select('branch_id, branches(*)').eq('user_id', userId),
+    ]);
+    const branchesData = (userBranches || []) as any[];
+
     return {
       ...profile,
+      organizations: organization || null,
       assignedBranches: branchesData.map((b: any) => b.branch_id),
       branches: branchesData.length > 0 ? branchesData[0].branches : null,
-      branch_id: branchesData.length > 0 ? branchesData[0].branch_id : null
+      branch_id: branchesData.length > 0 ? branchesData[0].branch_id : profile.branch_id || null
     } as UserProfile;
   },
 
