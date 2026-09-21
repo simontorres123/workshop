@@ -7,7 +7,7 @@ export function middleware(request: NextRequest) {
 
   // 1. Rutas que requieren estar LOGUEADO
   const privatePrefixes = [
-    '/dashboard', '/repairs', '/inventory', '/clients', 
+    '/dashboard', '/repairs', '/my-repairs', '/inventory', '/clients',
     '/sales', '/settings', '/system', '/organizations'
   ];
 
@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   if (isPrivateRoute && !token) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('from', pathname);
+    url.searchParams.set('from', `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

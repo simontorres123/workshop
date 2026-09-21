@@ -30,6 +30,7 @@ import { es } from 'date-fns/locale';
 import WarrantyClaimHistory from './WarrantyClaimHistory';
 import { useWarrantyClaims } from '@/hooks/useWarrantyClaims';
 import RepairPartsSection from './RepairPartsSection';
+import RepairAssignmentCard from './RepairAssignmentCard';
 
 // Función para traducir estados a español
 const getStatusLabel = (status: string) => {
@@ -165,6 +166,8 @@ export default function RepairOrderDetails({
               </CardContent>
             </Card>
           )}
+
+          <RepairAssignmentCard order={order} onOrderUpdate={onOrderUpdate} />
           
           {/* Información del Cliente */}
           <Card variant="outlined">
@@ -583,6 +586,8 @@ export default function RepairOrderDetails({
           {/* Historial de Garantías */}
           <WarrantyClaimHistory 
             claims={order.warrantyClaims || []}
+            branchId={order.branchId}
+            defaultTechnicianName={order.assignedTechnicianName}
             readonly={false}
             loading={loading}
             onAddClaim={async (claimData) => {

@@ -46,6 +46,16 @@ export async function PATCH(
     }
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
 
+    // Un técnico responsable es obligatorio desde que la orden entra al trabajo operativo.
+    if (['repair_accepted', 'in_repair', 'repaired', 'delivered', 'completed'].includes(status)) {
+      const { data: repairForAssignment, error: assignmentError } = await supabaseAdmin
+        .from('repair_orders').select('assigned_technician_id').eq('id', id).eq('organization_id', ctx.organizationId).maybeSingle();
+      if (assignmentError) throw assignmentError;
+      if (!repairForAssignment?.assigned_technician_id) {
+        return NextResponse.json({ success: false, error: 'Asigna un técnico responsable antes de continuar con la reparación.' }, { status: 400 });
+      }
+    }
+
     if (status === 'completed') {
       const { data: payment, error: paymentError } = await supabaseAdmin
         .from('workshop_sales')

@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Box,
   Container,
@@ -124,6 +125,12 @@ const paymentMethodLabel: Record<string, string> = {
 
 const isRepairPaid = (order: RepairOrder) => order.paymentStatus === 'paid' || Boolean(order.payment);
 
+const normalizeStatusFilter = (value: string | null) => {
+  const aliases: Record<string, string> = { pending: 'pending_diagnosis', pending_repair: 'pending_diagnosis', diagnostic_pending: 'pending_diagnosis', diagnosis: 'diagnosis_confirmed', accepted: 'repair_accepted', in_progress: 'in_repair', complete: 'completed' };
+  const normalized = value?.trim().toLowerCase() || '';
+  return aliases[normalized] || normalized || undefined;
+};
+
 function RepairActionsMenu({
   row,
   onView,
@@ -179,6 +186,7 @@ function RepairActionsMenu({
 }
 
 export default function RepairsPage() {
+  const searchParams = useSearchParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
@@ -196,6 +204,7 @@ export default function RepairsPage() {
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
   const [statusUpdateError, setStatusUpdateError] = useState('');
+  const [actionWarning, setActionWarning] = useState('');
 
   const { organizationId } = useAuth();
   const { orders, loading, error, fetchOrders, deleteOrder, updateOrderStatus, updateOrderInList, clearError } = useRepairOrders();
@@ -226,8 +235,11 @@ export default function RepairsPage() {
   }, [isMobile]);
 
   useEffect(() => {
-    fetchOrders();
-  }, []); // Solo ejecutar una vez al montar el componente
+    const folio = searchParams.get('folio')?.trim() || '';
+    const status = normalizeStatusFilter(searchParams.get('status'));
+    setSearchTerm(folio);
+    fetchOrders({ search: folio || undefined, status });
+  }, [fetchOrders, searchParams]);
 
   const handleViewOrder = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
@@ -246,6 +258,10 @@ export default function RepairsPage() {
   };
 
   const handleChargeRepair = (order: RepairOrder) => {
+    if (!order.assignedTechnicianId) {
+      setActionWarning('Asigna un técnico responsable antes de cobrar esta reparación.');
+      return;
+    }
     window.location.href = `/sales?mode=repairs&repair=${encodeURIComponent(order.folio)}`;
   };
 
@@ -305,8 +321,13 @@ export default function RepairsPage() {
   const handleChangeStatus = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (order) {
+      const nextStatus = getNextRepairStatus(order.status);
+      if (['repair_accepted', 'in_repair', 'repaired', 'delivered', 'completed'].includes(nextStatus) && !order.assignedTechnicianId) {
+        setActionWarning('Asigna un técnico responsable antes de continuar con la reparación.');
+        return;
+      }
       setSelectedOrder(order);
-      setNewStatus(getNextRepairStatus(order.status));
+      setNewStatus(nextStatus);
       setStatusNote('');
       setStatusUpdateError('');
       setOpenStatusDialog(true);
@@ -663,6 +684,7 @@ export default function RepairsPage() {
             {error}
           </Alert>
         )}
+        {actionWarning && <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setActionWarning('')}>{actionWarning}</Alert>}
 
         {/* Orders Table */}
         <Card>

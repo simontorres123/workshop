@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -45,6 +45,8 @@ interface WarrantyClaimHistoryProps {
   onUpdateClaim?: (claimId: string, claim: Partial<WarrantyClaim>) => void;
   readonly?: boolean;
   loading?: boolean;
+  branchId?: string;
+  defaultTechnicianName?: string;
 }
 
 export default function WarrantyClaimHistory({ 
@@ -52,8 +54,11 @@ export default function WarrantyClaimHistory({
   onAddClaim,
   onUpdateClaim,
   readonly = false,
-  loading = false 
+  loading = false,
+  branchId,
+  defaultTechnicianName = '',
 }: WarrantyClaimHistoryProps) {
+  const [technicians, setTechnicians] = useState<Array<{ id: string; name: string }>>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [editClaimId, setEditClaimId] = useState<string | null>(null);
@@ -67,6 +72,13 @@ export default function WarrantyClaimHistory({
   const [clientSignature, setClientSignature] = useState<DigitalSignature | null>(null);
   const [technicianSignature, setTechnicianSignature] = useState<DigitalSignature | null>(null);
   const [supervisorSignature, setSupervisorSignature] = useState<DigitalSignature | null>(null);
+
+  useEffect(() => {
+    if (!branchId) return;
+    fetch(`/api/repairs/technicians?branchId=${encodeURIComponent(branchId)}`, { credentials: 'include', cache: 'no-store' })
+      .then(response => response.json()).then(result => { if (result.success) setTechnicians(result.data || []); })
+      .catch(() => setTechnicians([]));
+  }, [branchId]);
 
   const handleSubmit = () => {
     if (editClaimId && onUpdateClaim) {
@@ -115,7 +127,7 @@ export default function WarrantyClaimHistory({
     setEditClaimId(null);
     setNewClaim({ 
       reason: '', 
-      technician: '', 
+      technician: defaultTechnicianName,
       notes: '', 
       resolution: '', 
       status: 'pending' 
@@ -178,7 +190,7 @@ export default function WarrantyClaimHistory({
               variant="outlined"
               size="small"
               startIcon={<Icon icon="eva:plus-outline" />}
-              onClick={() => setOpenDialog(true)}
+              onClick={() => { resetForm(); setOpenDialog(true); }}
               disabled={loading}
               sx={{ 
                 borderRadius: 2,
@@ -402,16 +414,13 @@ export default function WarrantyClaimHistory({
                 disabled={!!editClaimId}
               />
               
-              <TextField
-                fullWidth
-                label="Técnico que atiende"
-                value={newClaim.technician}
-                onChange={(e) => setNewClaim(prev => ({ ...prev, technician: e.target.value }))}
-                placeholder="Ej: Luis Pérez"
-                sx={{ mb: 2 }}
-                required
-                disabled={!!editClaimId}
-              />
+              <FormControl fullWidth sx={{ mb: 2 }} required disabled={!!editClaimId}>
+                <InputLabel>Técnico que atiende</InputLabel>
+                <Select label="Técnico que atiende" value={newClaim.technician} onChange={(e) => setNewClaim(prev => ({ ...prev, technician: e.target.value }))}>
+                  <MenuItem value=""><em>Selecciona un técnico</em></MenuItem>
+                  {technicians.map((technician) => <MenuItem key={technician.id} value={technician.name}>{technician.name}</MenuItem>)}
+                </Select>
+              </FormControl>
 
               <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>Estado del reclamo</InputLabel>

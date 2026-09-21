@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { Box, CircularProgress } from '@mui/material';
@@ -11,14 +11,19 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, role } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const technicianRestrictedRoute = role === 'technician' && (pathname === '/dashboard' || pathname.startsWith('/reports'));
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, loading, router]);
+    if (!loading && isAuthenticated && technicianRestrictedRoute) {
+      router.replace('/my-repairs');
+    }
+  }, [isAuthenticated, loading, router, technicianRestrictedRoute]);
 
   if (loading) {
     return (
@@ -29,7 +34,7 @@ export default function AdminLayout({
   }
 
   // Si no está autenticado, el useEffect redirigirá, pero mientras tanto no mostramos nada
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || technicianRestrictedRoute) return null;
 
   return <DashboardLayout>{children}</DashboardLayout>;
 }

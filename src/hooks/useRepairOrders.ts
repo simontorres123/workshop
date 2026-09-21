@@ -33,6 +33,7 @@ export function useRepairOrders(): UseRepairOrdersResult {
       if (filters?.search) searchParams.append('search', filters.search);
       if (filters?.status) searchParams.append('status', filters.status);
       if (filters?.clientId) searchParams.append('clientId', filters.clientId);
+      if (filters?.assignedTechnicianId) searchParams.append('assignedTechnicianId', filters.assignedTechnicianId);
       if (filters?.sortBy) searchParams.append('sortBy', filters.sortBy);
       if (filters?.sortOrder) searchParams.append('sortOrder', filters.sortOrder);
       if (filters?.limit) searchParams.append('limit', filters.limit.toString());
@@ -52,6 +53,7 @@ export function useRepairOrders(): UseRepairOrdersResult {
 
       const response = await fetch(`/api/repairs?${searchParams.toString()}`, {
         credentials: 'include',
+        cache: 'no-store',
       });
       
       if (!response.ok) {
@@ -75,7 +77,7 @@ export function useRepairOrders(): UseRepairOrdersResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeBranchId]);
 
   const createOrder = useCallback(async (data: CreateRepairOrderRequest): Promise<RepairOrder> => {
     setLoading(true);

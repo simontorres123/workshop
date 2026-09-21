@@ -452,7 +452,7 @@ export default function AutoNotificationScheduler() {
     switch (type) {
       case 'warranty_expiring': return '/inventory?filter=warranty_expiring';
       case 'low_stock': return '/inventory?filter=low_stock';
-      case 'pending_repairs': return '/repairs?status=pending';
+      case 'pending_repairs': return '/repairs?status=pending_diagnosis';
       case 'daily_summary': return '/dashboard';
       case 'backup_reminder': return '/system';
       default: return '/dashboard';

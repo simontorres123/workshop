@@ -98,6 +98,7 @@ export class SupabaseRepairOrderRepository {
           folio: folio,
           organization_id: ctx.organizationId,
           branch_id: ctx.branchId || null,
+          assigned_technician_id: data.assignedTechnicianId || null,
           client_id: data.clientId,
           client_name: data.clientName,
           client_phone: data.clientPhone,
@@ -241,6 +242,7 @@ export class SupabaseRepairOrderRepository {
       if (updates.confirmedDiagnosis) dbUpdates.confirmed_diagnosis = updates.confirmedDiagnosis;
       if (updates.images !== undefined) dbUpdates.images = updates.images;
       if (updates.trackingUrl !== undefined) (dbUpdates as any).tracking_url = updates.trackingUrl;
+      if (updates.assignedTechnicianId !== undefined) (dbUpdates as any).assigned_technician_id = updates.assignedTechnicianId || null;
 
       if (Object.keys(dbUpdates).length > 0) {
         let query = supabase
@@ -319,6 +321,7 @@ export class SupabaseRepairOrderRepository {
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.clientId) query = query.eq('client_id', filters.clientId);
     if (filters.branchId) query = query.eq('branch_id', filters.branchId);
+    if (filters.assignedTechnicianId) query = query.eq('assigned_technician_id', filters.assignedTechnicianId);
 
     if (filters.dateRange) {
       if (filters.dateRange.start) query = query.gte('created_at', filters.dateRange.start.toISOString());
@@ -479,6 +482,8 @@ export class SupabaseRepairOrderRepository {
       trackingUrl: db.tracking_url || undefined,
       organizationId: db.organization_id || undefined,
       branchId: db.branch_id || undefined,
+      assignedTechnicianId: (db as any).assigned_technician_id || undefined,
+      assignedAt: (db as any).assigned_at ? new Date((db as any).assigned_at) : undefined,
       clientId: db.client_id || undefined,
       clientDeviceId: (db as any).client_device_id || undefined,
       clientName: db.client_name,

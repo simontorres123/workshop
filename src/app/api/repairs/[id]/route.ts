@@ -12,6 +12,7 @@ export async function GET(
   try {
     const { id } = await params;
     const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado' }, { status: 401 });
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
     
     const order = await repairOrderRepository.findById(id);
@@ -63,9 +64,15 @@ export async function PUT(
   try {
     const { id } = await params;
     const ctx = await getTenantContext(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'No autenticado' }, { status: 401 });
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
     const body = await request.json();
     const updateData: UpdateRepairOrderRequest = body;
+
+    if (updateData.assignedTechnicianId) {
+      const { data: technician } = await supabaseAdmin.from('user_profiles').select('id').eq('id', updateData.assignedTechnicianId).eq('organization_id', ctx.organizationId).in('role', ['technician', 'branch_admin']).maybeSingle();
+      if (!technician) return NextResponse.json({ success: false, error: 'El técnico seleccionado no pertenece a este taller.' }, { status: 400 });
+    }
 
     const updatedOrder = await repairOrderRepository.update(id, updateData);
     

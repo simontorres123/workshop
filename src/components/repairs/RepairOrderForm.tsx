@@ -104,6 +104,7 @@ export default function RepairOrderForm({
     totalCost: order?.totalCost || undefined,
     clientId: order?.clientId,
     branchId: order?.branchId || activeBranchId || undefined,
+    assignedTechnicianId: order?.assignedTechnicianId || undefined,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,6 +114,7 @@ export default function RepairOrderForm({
   const [warrantyMonthsInput, setWarrantyMonthsInput] = useState(String(order?.warrantyPeriodMonths ?? 3));
   const [storageMonthsInput, setStorageMonthsInput] = useState(String(order?.storagePeriodMonths ?? 1));
   const [catalog, setCatalog] = useState<DeviceCatalogEntry[]>([]);
+  const [technicians, setTechnicians] = useState<Array<{ id: string; name: string }>>([]);
   const [customDeviceType, setCustomDeviceType] = useState(
     order?.deviceType && !deviceTypes.includes(order.deviceType) ? order.deviceType : ''
   );
@@ -124,6 +126,15 @@ export default function RepairOrderForm({
       .then((result) => { if (result.success) setCatalog(result.data || []); })
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    const branchId = formData.branchId || activeBranchId;
+    if (!branchId) return;
+    fetch(`/api/repairs/technicians?branchId=${encodeURIComponent(branchId)}`, { credentials: 'include', cache: 'no-store' })
+      .then(response => response.json())
+      .then(result => { if (result.success) setTechnicians(result.data || []); })
+      .catch(() => setTechnicians([]));
+  }, [formData.branchId, activeBranchId]);
 
   // Inicializar imágenes si estamos editando una orden existente
   useEffect(() => {
@@ -148,6 +159,16 @@ export default function RepairOrderForm({
     setWarrantyMonthsInput(String(order?.warrantyPeriodMonths ?? 3));
     setStorageMonthsInput(String(order?.storagePeriodMonths ?? 1));
   }, [order?.id, order?.warrantyPeriodMonths, order?.storagePeriodMonths]);
+
+  // El diálogo permanece montado al cerrarse: sincronizamos el responsable
+  // de la orden que se abre para no mostrar un selector vacío o anterior.
+  useEffect(() => {
+    setFormData(previous => ({
+      ...previous,
+      branchId: order?.branchId || activeBranchId || undefined,
+      assignedTechnicianId: order?.assignedTechnicianId || undefined,
+    }));
+  }, [order?.id, order?.branchId, order?.assignedTechnicianId, activeBranchId]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -378,6 +399,34 @@ export default function RepairOrderForm({
                 placeholder="cliente@example.com"
               />
             </Stack>
+          </CardContent>
+        </Card>
+
+        <Card variant="outlined">
+          <CardHeader
+            avatar={<Icon icon="eva:people-outline" width={20} />}
+            title="Asignación de técnico"
+            subheader="Opcional al crear; será obligatorio antes de iniciar la reparación o cobrarla."
+            slotProps={{ title: { variant: 'subtitle1', fontWeight: 600 } }}
+            sx={{ pb: 1 }}
+          />
+          <CardContent sx={{ pt: 0 }}>
+            <FormControl fullWidth>
+              <Select
+                value={formData.assignedTechnicianId || ''}
+                displayEmpty
+                inputProps={{ 'aria-label': 'Técnico responsable' }}
+                renderValue={(value) => {
+                  if (!value) return <Typography component="span" color="text.secondary">Sin técnico asignado</Typography>;
+                  return technicians.find((technician) => technician.id === value)?.name || 'Técnico asignado';
+                }}
+                onChange={handleChange('assignedTechnicianId')}
+                disabled={loading || isSubmitting}
+              >
+                <MenuItem value=""><em>Sin técnico asignado</em></MenuItem>
+                {technicians.map((technician) => <MenuItem key={technician.id} value={technician.id}>{technician.name}</MenuItem>)}
+              </Select>
+            </FormControl>
           </CardContent>
         </Card>
 

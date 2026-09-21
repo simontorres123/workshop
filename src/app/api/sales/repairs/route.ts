@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       const configuredTotal = money(repair.total_cost);
       const labor = money(repair.labor_cost) || Math.max(0, configuredTotal - money(repair.parts_cost));
       const sale = saleByRepair.get(repair.id);
-      return { id: repair.id, folio: repair.folio, branchId: repair.branch_id, clientName: repair.client_name, clientPhone: repair.client_phone, device: [repair.device_brand, repair.device_type, repair.device_model].filter(Boolean).join(' '), completedAt: repair.completed_at, laborCost: labor, partsCost: partsTotal, estimatedTotal: labor + partsTotal, configuredTotal, parts: repairParts, existingSale: sale ? { id: sale.id, saleNumber: sale.sale_number, status: sale.status, total: money(sale.total), createdAt: sale.created_at } : null };
+      return { id: repair.id, folio: repair.folio, branchId: repair.branch_id, clientName: repair.client_name, clientPhone: repair.client_phone, device: [repair.device_brand, repair.device_type, repair.device_model].filter(Boolean).join(' '), completedAt: repair.completed_at, assignedTechnicianId: repair.assigned_technician_id || null, laborCost: labor, partsCost: partsTotal, estimatedTotal: labor + partsTotal, configuredTotal, parts: repairParts, existingSale: sale ? { id: sale.id, saleNumber: sale.sale_number, status: sale.status, total: money(sale.total), createdAt: sale.created_at } : null };
     });
     return NextResponse.json({ success: true, data: result });
   } catch (error) {

@@ -41,6 +41,9 @@ export interface RepairOrder {
   clientEmail?: string;
   clientDeviceId?: string;
   branchId?: string;
+  assignedTechnicianId?: string;
+  assignedTechnicianName?: string;
+  assignedAt?: Date;
   
   // Información del aparato
   deviceType: string; // Ej: "Lavadora", "Refrigerador", "Microondas"
@@ -152,6 +155,7 @@ export interface CreateRepairOrderRequest {
   saveDeviceForClient?: boolean;
   organizationId?: string;
   branchId?: string;
+  assignedTechnicianId?: string;
   
   deviceType: string;
   deviceBrand: string;
@@ -181,6 +185,7 @@ export interface UpdateRepairOrderRequest {
   clientName?: string;
   clientPhone?: string;
   clientEmail?: string;
+  assignedTechnicianId?: string;
   
   deviceType?: string;
   deviceBrand?: string;
@@ -216,6 +221,7 @@ export interface RepairOrderSearchFilters {
   status?: string;
   clientId?: string;
   branchId?: string;
+  assignedTechnicianId?: string;
   dateRange?: {
     start?: Date;
     end?: Date;

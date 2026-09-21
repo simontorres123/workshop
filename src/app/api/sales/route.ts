@@ -64,12 +64,13 @@ export async function POST(request: NextRequest) {
     if (repairId) {
       const { data: repair, error: repairError } = await supabaseAdmin
         .from('repair_orders')
-        .select('id, organization_id, branch_id')
+        .select('id, organization_id, branch_id, assigned_technician_id')
         .eq('id', repairId)
         .eq('organization_id', context.organizationId)
         .maybeSingle();
       if (repairError) throw repairError;
       if (!repair || repair.branch_id !== branchId) return NextResponse.json({ success: false, error: 'La reparación no pertenece a la sucursal seleccionada' }, { status: 403 });
+      if (!repair.assigned_technician_id) return NextResponse.json({ success: false, error: 'Asigna un técnico responsable antes de cobrar esta reparación.' }, { status: 400 });
       const { data: existingRepairSale, error: existingSaleError } = await supabaseAdmin.from('workshop_sales').select('sale_number, status').eq('organization_id', context.organizationId).eq('repair_id', repairId).not('status', 'in', '(cancelled,refunded)').maybeSingle();
       if (existingSaleError) throw existingSaleError;
       if (existingRepairSale) return NextResponse.json({ success: false, error: `La reparación ya tiene un cobro registrado (${existingRepairSale.sale_number}).` }, { status: 409 });

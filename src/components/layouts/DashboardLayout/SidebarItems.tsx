@@ -66,12 +66,19 @@ const operationsConfig: NavItemData[] = [
   {
     title: 'dashboard',
     path: '/dashboard',
-    icon: 'eva:pie-chart-2-fill'
+    icon: 'eva:pie-chart-2-fill',
+    roles: ['super_admin', 'org_admin', 'branch_admin']
   },
   {
     title: 'reparaciones',
     path: '/repairs',
     icon: 'eva:settings-fill'
+  },
+  {
+    title: 'mis reparaciones',
+    path: '/my-repairs',
+    icon: 'eva:clipboard-fill',
+    roles: ['technician']
   },
   {
     title: 'clientes',
@@ -91,7 +98,8 @@ const operationsConfig: NavItemData[] = [
   {
     title: 'reportes',
     path: '/reports',
-    icon: 'eva:file-text-fill'
+    icon: 'eva:file-text-fill',
+    roles: ['super_admin', 'org_admin', 'branch_admin']
   }
 ];
 

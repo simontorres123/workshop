@@ -6,18 +6,36 @@ import { isValidPhoneNumber, normalizePhoneNumber } from '@/utils/phone';
 import { getTenantContext } from '@/lib/auth/tenant-context';
 import { supabaseAdmin } from '@/lib/supabase/client';
 
+const normalizeStatus = (value: string | null) => {
+  const aliases: Record<string, string> = {
+    pending: 'pending_diagnosis',
+    pending_repair: 'pending_diagnosis',
+    diagnostic_pending: 'pending_diagnosis',
+    diagnosis: 'diagnosis_confirmed',
+    accepted: 'repair_accepted',
+    in_progress: 'in_repair',
+    complete: 'completed',
+  };
+  const normalized = value?.trim().toLowerCase() || '';
+  return aliases[normalized] || normalized || undefined;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const ctx = await getTenantContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'No autenticado o sin organización asignada' }, { status: 401 });
+    }
     const repairOrderRepository = RepositoryFactory.getRepairOrders(ctx || undefined);
 
     const { searchParams } = new URL(request.url);
     
     const filters: RepairOrderSearchFilters = {
       search: searchParams.get('search') || undefined,
-      status: searchParams.get('status') || undefined,
+      status: normalizeStatus(searchParams.get('status')),
       clientId: searchParams.get('clientId') || undefined,
       branchId: searchParams.get('branchId') || undefined,
+      assignedTechnicianId: searchParams.get('assignedTechnicianId') || undefined,
       sortBy: (searchParams.get('sortBy') as 'createdAt' | 'folio') || 'createdAt',
       sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc',
       limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50,
@@ -32,6 +50,12 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await repairOrderRepository.searchWithPagination(filters);
+    const assigneeIds = Array.from(new Set(result.orders.map(order => order.assignedTechnicianId).filter(Boolean))) as string[];
+    const { data: assignees, error: assigneesError } = assigneeIds.length
+      ? await supabaseAdmin.from('user_profiles').select('id, full_name').eq('organization_id', ctx?.organizationId || '').in('id', assigneeIds)
+      : { data: [], error: null };
+    if (assigneesError) throw assigneesError;
+    const assigneeNames = new Map((assignees || []).map(assignee => [assignee.id, assignee.full_name]));
     const repairIds = result.orders.map(order => order.id);
     const { data: payments, error: paymentsError } = repairIds.length
       ? await supabaseAdmin
@@ -46,8 +70,9 @@ export async function GET(request: NextRequest) {
     const paymentByRepair = new Map((payments || []).map(payment => [payment.repair_id, payment]));
     const orders = result.orders.map(order => {
       const payment = paymentByRepair.get(order.id);
+      const withAssignee = order.assignedTechnicianId ? { ...order, assignedTechnicianName: assigneeNames.get(order.assignedTechnicianId) || 'Técnico asignado' } : order;
       return payment ? {
-        ...order,
+        ...withAssignee,
         paymentStatus: 'paid',
         payment: {
           saleId: payment.id,
@@ -56,14 +81,14 @@ export async function GET(request: NextRequest) {
           paymentMethod: payment.payment_method,
           paidAt: new Date(payment.created_at),
         },
-      } : order;
+      } : withAssignee;
     });
     
     return NextResponse.json({
       success: true,
       data: orders,
       total: result.total
-    });
+    }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Error fetching repair orders:', error);
     return NextResponse.json(
@@ -119,6 +144,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (orderData.assignedTechnicianId) {
+      const { data: technician } = await supabaseAdmin.from('user_profiles').select('id, role, branch_id')
+        .eq('id', orderData.assignedTechnicianId).eq('organization_id', ctx.organizationId).in('role', ['technician', 'branch_admin']).maybeSingle();
+      if (!technician) return NextResponse.json({ success: false, error: 'El técnico seleccionado no pertenece a este taller.' }, { status: 400 });
+      const targetBranch = ctx.branchId || orderData.branchId;
+      const { data: membership } = targetBranch ? await supabaseAdmin.from('user_branches').select('user_id').eq('user_id', technician.id).eq('branch_id', targetBranch).maybeSingle() : { data: null };
+      if (targetBranch && technician.branch_id !== targetBranch && !membership) return NextResponse.json({ success: false, error: 'El técnico no está asignado a la sucursal de esta orden.' }, { status: 400 });
+    }
+
     // El flujo de la orden conserva el teléfono original como snapshot histórico,
     // pero usa la clave normalizada para vincular o crear el cliente en segundo plano.
     let clientId = orderData.clientId;
@@ -167,6 +201,9 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Error creando orden de reparación en la base de datos' },
         { status: 500 }
       );
+    }
+    if (order.assignedTechnicianId) {
+      await supabaseAdmin.from('repair_assignment_history').insert({ organization_id: ctx.organizationId, branch_id: order.branchId || null, repair_id: order.id, assigned_technician_id: order.assignedTechnicianId, assigned_by: ctx.userId || null });
     }
     
     return NextResponse.json({
